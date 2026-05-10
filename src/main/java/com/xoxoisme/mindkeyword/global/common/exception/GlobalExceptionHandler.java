@@ -1,6 +1,6 @@
-package com.xoxoisme.mindkeyword.global.exception;
+package com.xoxoisme.mindkeyword.global.common.exception;
 
-import com.xoxoisme.mindkeyword.global.response.ErrorResponse;
+import com.xoxoisme.mindkeyword.global.common.response.ErrorResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;

@@ -1,4 +1,4 @@
-package com.xoxoisme.mindkeyword.global.response;
+package com.xoxoisme.mindkeyword.global.common.response;
 
 import lombok.Getter;
 

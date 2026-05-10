@@ -1,4 +1,4 @@
-package com.xoxoisme.mindkeyword.global.common;
+package com.xoxoisme.mindkeyword.global.common.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;

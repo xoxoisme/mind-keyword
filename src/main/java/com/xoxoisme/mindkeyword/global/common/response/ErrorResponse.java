@@ -1,6 +1,6 @@
-package com.xoxoisme.mindkeyword.global.response;
+package com.xoxoisme.mindkeyword.global.common.response;
 
-import com.xoxoisme.mindkeyword.global.exception.ErrorCode;
+import com.xoxoisme.mindkeyword.global.common.exception.ErrorCode;
 import lombok.Getter;
 
 @Getter

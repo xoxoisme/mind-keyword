@@ -1,4 +1,4 @@
-package com.xoxoisme.mindkeyword.global.exception;
+package com.xoxoisme.mindkeyword.global.common.exception;
 
 import lombok.Getter;
 
