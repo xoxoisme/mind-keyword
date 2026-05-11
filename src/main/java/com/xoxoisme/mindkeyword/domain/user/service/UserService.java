@@ -1,11 +1,16 @@
 package com.xoxoisme.mindkeyword.domain.user.service;
 
+import com.xoxoisme.mindkeyword.domain.user.dto.request.LoginRequest;
 import com.xoxoisme.mindkeyword.domain.user.dto.request.SignupRequest;
+import com.xoxoisme.mindkeyword.domain.user.dto.response.TokenResponse;
 import com.xoxoisme.mindkeyword.domain.user.entity.User;
 import com.xoxoisme.mindkeyword.domain.user.repository.UserRepository;
 import com.xoxoisme.mindkeyword.global.common.exception.BusinessException;
 import com.xoxoisme.mindkeyword.global.common.exception.ErrorCode;
+import com.xoxoisme.mindkeyword.global.jwt.JwtTokenProvider;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
 
     public void signup(SignupRequest request) {
         if (userRepository.existsByEmail(request.email())) {
@@ -23,12 +30,20 @@ public class UserService {
         if (userRepository.existsByNickname(request.nickname())) {
             throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
         }
-
         User user = User.create(
                 request.email(),
                 request.password(),
                 request.nickname()
         );
         userRepository.save(user);
+    }
+
+    public TokenResponse login(@Valid LoginRequest request) {
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        if (passwordEncoder.matches(request.password(), user.getPassword())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        return new TokenResponse(jwtTokenProvider.generateToken(user.getId()));
     }
 }
