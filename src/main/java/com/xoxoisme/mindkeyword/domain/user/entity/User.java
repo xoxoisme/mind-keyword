@@ -3,10 +3,12 @@ package com.xoxoisme.mindkeyword.domain.user.entity;
 import com.xoxoisme.mindkeyword.global.common.entity.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.*;
 
 @Getter
 @Entity
+@Table(name = "users")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User extends BaseTimeEntity {
 
