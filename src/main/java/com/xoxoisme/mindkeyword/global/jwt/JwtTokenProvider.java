@@ -1,4 +1,4 @@
-package com.xoxoisme.mindkeyword.global.common.jwt;
+package com.xoxoisme.mindkeyword.global.jwt;
 
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
