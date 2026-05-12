@@ -17,6 +17,17 @@ public class MindMap extends BaseTimeEntity {
     @JoinColumn(nullable = false, name = "user_id")
     private User user;
 
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 30)
     private String title;
+
+    public static MindMap create(User user, String title) {
+        MindMap mindMap = new MindMap();
+        mindMap.user = user;
+        mindMap.title = title;
+        return mindMap;
+    }
+
+    public void update(String title) {
+        this.title = title;
+    }
 }
