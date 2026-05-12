@@ -28,4 +28,10 @@ public class UserController {
     public ApiResponse<TokenResponse> login(@RequestBody @Valid LoginRequest request) {
         return ApiResponse.ok(userService.login(request));
     }
+
+    // TODO: 이후 배포 시, Redis 블랙리스트로 acessToken 탈취 위험 예방
+    @PostMapping("/logout")
+    public ApiResponse<Void> ok() {
+        return ApiResponse.ok();
+    }
 }
