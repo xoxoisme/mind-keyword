@@ -30,4 +30,11 @@ public class MindMapController {
         Long userId = (Long) authentication.getPrincipal();
         mindMapService.update(userId, id, request);
     }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        mindMapService.delete(userId, id);
+    }
 }

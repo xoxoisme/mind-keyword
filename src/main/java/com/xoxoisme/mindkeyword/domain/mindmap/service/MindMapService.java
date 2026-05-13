@@ -35,6 +35,11 @@ public class MindMapService {
         mindMap.update(request.title());
     }
 
+    public void delete(Long userId, Long mindMapId) {
+        MindMap mindMap = getOwnedMindMap(userId, mindMapId);
+        mindMapRepository.deleteById(mindMapId);
+    }
+
     private MindMap getOwnedMindMap(Long userId, Long mindMapId) {
         MindMap mindMap = mindMapRepository.findById(mindMapId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MIND_MAP_NOT_FOUND));
