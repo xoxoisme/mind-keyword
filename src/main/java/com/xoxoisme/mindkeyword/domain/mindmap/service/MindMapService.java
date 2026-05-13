@@ -37,7 +37,7 @@ public class MindMapService {
 
     public void delete(Long userId, Long mindMapId) {
         MindMap mindMap = getOwnedMindMap(userId, mindMapId);
-        mindMapRepository.deleteById(mindMapId);
+        mindMapRepository.delete(mindMap);
     }
 
     private MindMap getOwnedMindMap(Long userId, Long mindMapId) {
