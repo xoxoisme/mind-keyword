@@ -21,6 +21,7 @@ public class MindMapService {
     private final MindMapRepository mindMapRepository;
     private final UserRepository userRepository;
 
+    @Transactional
     public MindMapResponse create(Long userId, @Valid MindMapRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -35,6 +36,7 @@ public class MindMapService {
         mindMap.update(request.title());
     }
 
+    @Transactional
     public void delete(Long userId, Long mindMapId) {
         MindMap mindMap = getOwnedMindMap(userId, mindMapId);
         mindMapRepository.delete(mindMap);
