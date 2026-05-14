@@ -45,8 +45,6 @@ public class MindMapService {
     }
 
     public List<MindMapResponse> getAllMindMaps(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         return mindMapRepository.findAllByUserId(userId)
                 .stream()
                 .map(MindMapResponse::from)
