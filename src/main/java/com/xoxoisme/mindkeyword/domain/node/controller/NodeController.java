@@ -4,14 +4,12 @@ import com.xoxoisme.mindkeyword.domain.node.dto.request.NodeChildCreateRequest;
 import com.xoxoisme.mindkeyword.domain.node.dto.request.NodeRootCreateRequest;
 import com.xoxoisme.mindkeyword.domain.node.dto.request.NodeUpdateRequest;
 import com.xoxoisme.mindkeyword.domain.node.dto.response.NodeResponse;
-import com.xoxoisme.mindkeyword.domain.node.entity.Node;
 import com.xoxoisme.mindkeyword.domain.node.service.NodeService;
 import com.xoxoisme.mindkeyword.global.common.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
