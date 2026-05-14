@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record NodeChildCreateRequest(
-        @NotBlank Long parentId,
+        Long parentId,
         @Size(max = 50) String content,
         Double positionX,
         Double positionY
