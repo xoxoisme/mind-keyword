@@ -32,7 +32,7 @@ public class UserService {
         }
         User user = User.create(
                 request.email(),
-                request.password(),
+                passwordEncoder.encode(request.password()),
                 request.nickname()
         );
         userRepository.save(user);
@@ -41,7 +41,7 @@ public class UserService {
     public TokenResponse login(@Valid LoginRequest request) {
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        if (passwordEncoder.matches(request.password(), user.getPassword())) {
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
         return new TokenResponse(jwtTokenProvider.generateToken(user.getId()));
