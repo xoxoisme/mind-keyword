@@ -26,15 +26,15 @@ public class MindMapController {
 
     @PatchMapping("/{mindMapId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void update(@PathVariable Long id, @RequestBody @Valid MindMapRequest request, Authentication authentication) {
+    public void update(@PathVariable Long mindMapId, @RequestBody @Valid MindMapRequest request, Authentication authentication) {
         Long userId = (Long) authentication.getPrincipal();
-        mindMapService.update(userId, id, request);
+        mindMapService.update(userId, mindMapId, request);
     }
 
     @DeleteMapping("/{mindMapId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Long id, Authentication authentication) {
+    public void delete(@PathVariable Long mindMapId, Authentication authentication) {
         Long userId = (Long) authentication.getPrincipal();
-        mindMapService.delete(userId, id);
+        mindMapService.delete(userId, mindMapId);
     }
 }
