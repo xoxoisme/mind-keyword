@@ -24,14 +24,14 @@ public class MindMapController {
         return ApiResponse.ok(mindMapService.create(userId, request));
     }
 
-    @PatchMapping("/{id}")
+    @PatchMapping("/{mindMapId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void update(@PathVariable Long id, @RequestBody @Valid MindMapRequest request, Authentication authentication) {
         Long userId = (Long) authentication.getPrincipal();
         mindMapService.update(userId, id, request);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{mindMapId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id, Authentication authentication) {
         Long userId = (Long) authentication.getPrincipal();
