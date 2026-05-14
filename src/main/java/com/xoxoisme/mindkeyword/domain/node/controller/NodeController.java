@@ -28,7 +28,7 @@ public class NodeController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<NodeResponse> createRoot(@PathVariable Long mindMapId, @RequestBody @Valid NodeChildCreateRequest request, Authentication authentication) {
+    public ApiResponse<NodeResponse> createChild(@PathVariable Long mindMapId, @RequestBody @Valid NodeChildCreateRequest request, Authentication authentication) {
         Long userId = (Long) authentication.getPrincipal();
         return ApiResponse.ok(nodeService.createChild(userId, mindMapId, request));
     }
