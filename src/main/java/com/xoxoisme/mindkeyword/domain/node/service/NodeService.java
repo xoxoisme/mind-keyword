@@ -53,6 +53,13 @@ public class NodeService {
         nodeRepository.save(node);
     }
 
+    public void delete(Long nodeId, Long userId, Long mindMapId) {
+        getOwnedMindMap(userId, mindMapId);
+        Node node = nodeRepository.findById(nodeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NODE_NOT_FOUND));
+        nodeRepository.delete(node);
+    }
+
     private MindMap getOwnedMindMap(Long userId, Long mindMapId) {
         userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));

@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -39,5 +40,12 @@ public class NodeController {
     public void update(@PathVariable Long nodeId, @PathVariable Long mindMapId, @RequestBody @Valid NodeUpdateRequest request, Authentication authentication) {
         Long userId = (Long) authentication.getPrincipal();
         nodeService.update(nodeId, userId, mindMapId, request);
+    }
+
+    @DeleteMapping("/{nodeId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long nodeId, @PathVariable Long mindMapId, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        nodeService.delete(nodeId, userId, mindMapId);
     }
 }
