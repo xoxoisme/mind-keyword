@@ -21,7 +21,8 @@ public enum ErrorCode {
     MIND_MAP_NOT_FOUND("M001", HttpStatus.NOT_FOUND , "존재하지 않는 마인드맵입니다."),
 
     // Node
-    PARENT_NODE_NOT_FOUND("N001", HttpStatus.NOT_FOUND, "상위 노드가 존재하지 않습니다.");
+    PARENT_NODE_NOT_FOUND("N001", HttpStatus.NOT_FOUND, "상위 노드가 존재하지 않습니다."),
+    NODE_NOT_FOUND("N002", HttpStatus.NOT_FOUND, "존재하지 않는 노드입니다.");
 
 
     private final String code;
