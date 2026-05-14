@@ -29,4 +29,35 @@ public class Node extends BaseTimeEntity {
 
     @Column(nullable = false, name = "position_y")
     private Double positionY;
+
+    public static Node createRoot(MindMap mindMap, String content) {
+        Node node = new Node();
+        node.mindMap = mindMap;
+        node.parent = null;
+        node.content = content;
+        node.positionX = 0.0;
+        node.positionY = 0.0;
+        return node;
+    }
+
+    public static Node createChild(MindMap mindMap, Node parent, String content, Double positionX, Double positionY) {
+        Node node = new Node();
+        node.mindMap = mindMap;
+        node.parent = parent;
+        node.content = content;
+        node.positionX = positionX;
+        node.positionY = positionY;
+        return node;
+    }
+
+    public void updatePosition(Double positionX, Double positionY) {
+        this.positionX = positionX;
+        this.positionY = positionY;
+    }
+
+    public void updateContent(String content) {
+        this.content = content;
+    }
+
+
 }

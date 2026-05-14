@@ -1,11 +1,24 @@
 package com.xoxoisme.mindkeyword.domain.node.controller;
 
+import com.xoxoisme.mindkeyword.domain.node.dto.request.NodeRootCreateRequest;
+import com.xoxoisme.mindkeyword.domain.node.dto.response.NodeResponse;
+import com.xoxoisme.mindkeyword.domain.node.service.NodeService;
+import com.xoxoisme.mindkeyword.global.common.response.ApiResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/nodes")
+@RequestMapping("/api/mindmaps/{mindMapId}/nodes")
 @RequiredArgsConstructor
 public class NodeController {
+
+    private final NodeService nodeService;
+
+    @PostMapping("/root")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<NodeResponse> createRoot(@PathVariable Long mindMapId, @RequestBody @Valid NodeRootCreateRequest request) {
+        return ApiResponse.ok(nodeService.createRoot(mindMapId, request));
+    }
 }
