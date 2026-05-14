@@ -14,6 +14,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/mindmaps/{mindMapId}/nodes")
 @RequiredArgsConstructor
@@ -47,5 +49,11 @@ public class NodeController {
     public void delete(@PathVariable Long nodeId, @PathVariable Long mindMapId, Authentication authentication) {
         Long userId = (Long) authentication.getPrincipal();
         nodeService.delete(nodeId, userId, mindMapId);
+    }
+
+    @GetMapping
+    public ApiResponse<List<NodeResponse>> allNodes(@PathVariable Long mindMapId, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ApiResponse.ok(nodeService.getAllNodes(userId, mindMapId));
     }
 }

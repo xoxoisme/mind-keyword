@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -45,19 +47,29 @@ public class NodeService {
         return NodeResponse.from(node);
     }
 
+    @Transactional
     public void update(Long nodeId, Long userId, Long mindMapId, @Valid NodeUpdateRequest request) {
-        MindMap mindMap = getOwnedMindMap(userId, mindMapId);
+        getOwnedMindMap(userId, mindMapId);
         Node node = nodeRepository.findById(nodeId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NODE_NOT_FOUND));
         node.update(request.content(), request.positionX(), request.positionY());
         nodeRepository.save(node);
     }
 
+    @Transactional
     public void delete(Long nodeId, Long userId, Long mindMapId) {
         getOwnedMindMap(userId, mindMapId);
         Node node = nodeRepository.findById(nodeId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NODE_NOT_FOUND));
         nodeRepository.delete(node);
+    }
+
+    public List<NodeResponse> getAllNodes(Long userId, Long mindMapId) {
+        getOwnedMindMap(userId, mindMapId);
+        return nodeRepository.findAllByMindMapId(mindMapId)
+                .stream()
+                .map(NodeResponse::from)
+                .toList();
     }
 
     private MindMap getOwnedMindMap(Long userId, Long mindMapId) {
