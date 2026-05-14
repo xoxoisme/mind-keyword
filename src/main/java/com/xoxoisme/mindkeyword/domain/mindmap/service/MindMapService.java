@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -40,6 +42,15 @@ public class MindMapService {
     public void delete(Long userId, Long mindMapId) {
         MindMap mindMap = getOwnedMindMap(userId, mindMapId);
         mindMapRepository.delete(mindMap);
+    }
+
+    public List<MindMapResponse> getAllMindMaps(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        return mindMapRepository.findAllByUserId(userId)
+                .stream()
+                .map(MindMapResponse::from)
+                .toList();
     }
 
     private MindMap getOwnedMindMap(Long userId, Long mindMapId) {

@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/mindmaps")
 @RequiredArgsConstructor
@@ -36,5 +38,11 @@ public class MindMapController {
     public void delete(@PathVariable Long mindMapId, Authentication authentication) {
         Long userId = (Long) authentication.getPrincipal();
         mindMapService.delete(userId, mindMapId);
+    }
+
+    @GetMapping
+    public ApiResponse<List<MindMapResponse>> allMindMaps(Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ApiResponse.ok(mindMapService.getAllMindMaps(userId));
     }
 }
