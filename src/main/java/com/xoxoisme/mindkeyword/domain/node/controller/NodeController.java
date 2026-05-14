@@ -1,5 +1,6 @@
 package com.xoxoisme.mindkeyword.domain.node.controller;
 
+import com.xoxoisme.mindkeyword.domain.node.dto.request.NodeChildCreateRequest;
 import com.xoxoisme.mindkeyword.domain.node.dto.request.NodeRootCreateRequest;
 import com.xoxoisme.mindkeyword.domain.node.dto.response.NodeResponse;
 import com.xoxoisme.mindkeyword.domain.node.entity.Node;
@@ -27,5 +28,8 @@ public class NodeController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<NodeResponse> create(@PathVariable Long mindMapId, )
+    public ApiResponse<NodeResponse> createRoot(@PathVariable Long mindMapId, @RequestBody @Valid NodeChildCreateRequest request, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ApiResponse.ok(nodeService.createChild(userId, mindMapId, request));
+    }
 }

@@ -2,6 +2,7 @@ package com.xoxoisme.mindkeyword.domain.node.service;
 
 import com.xoxoisme.mindkeyword.domain.mindmap.entity.MindMap;
 import com.xoxoisme.mindkeyword.domain.mindmap.repository.MindMapRepository;
+import com.xoxoisme.mindkeyword.domain.node.dto.request.NodeChildCreateRequest;
 import com.xoxoisme.mindkeyword.domain.node.dto.request.NodeRootCreateRequest;
 import com.xoxoisme.mindkeyword.domain.node.dto.response.NodeResponse;
 import com.xoxoisme.mindkeyword.domain.node.entity.Node;
@@ -30,7 +31,26 @@ public class NodeService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         MindMap mindMap = mindMapRepository.findById(mindMapId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MIND_MAP_NOT_FOUND));
+        if (!mindMap.getUser().getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
         Node node = Node.createRoot(mindMap, request.content());
+        nodeRepository.save(node);
+        return NodeResponse.from(node);
+    }
+
+    @Transactional
+    public NodeResponse createChild(Long userId, Long mindMapId, NodeChildCreateRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        MindMap mindMap = mindMapRepository.findById(mindMapId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MIND_MAP_NOT_FOUND));
+        if (!mindMap.getUser().getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+        Node parent = nodeRepository.findById(request.parentId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.PARENT_NODE_NOT_FOUND));
+        Node node = Node.createChild(mindMap, parent, request.content(), request.positionX(), request.positionY());
         nodeRepository.save(node);
         return NodeResponse.from(node);
     }

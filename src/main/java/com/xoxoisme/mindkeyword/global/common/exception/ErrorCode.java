@@ -18,7 +18,10 @@ public enum ErrorCode {
     USER_NOT_FOUND("U003", HttpStatus.NOT_FOUND , "존재하지 않는 사용자입니다."),
 
     // MindMap
-    MIND_MAP_NOT_FOUND("M001", HttpStatus.NOT_FOUND , "존재하지 않는 마인드맵입니다.");
+    MIND_MAP_NOT_FOUND("M001", HttpStatus.NOT_FOUND , "존재하지 않는 마인드맵입니다."),
+
+    // Node
+    PARENT_NODE_NOT_FOUND("N001", HttpStatus.NOT_FOUND, "상위 노드가 존재하지 않습니다.");
 
 
     private final String code;
