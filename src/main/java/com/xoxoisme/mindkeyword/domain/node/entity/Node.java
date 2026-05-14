@@ -3,6 +3,7 @@ package com.xoxoisme.mindkeyword.domain.node.entity;
 import com.xoxoisme.mindkeyword.domain.mindmap.entity.MindMap;
 import com.xoxoisme.mindkeyword.global.common.entity.BaseTimeEntity;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -60,4 +61,9 @@ public class Node extends BaseTimeEntity {
     }
 
 
+    public void update(String content, Double positionX, Double positionY) {
+        this.content = content;
+        this.positionX = positionX;
+        this.positionY = positionY;
+    }
 }

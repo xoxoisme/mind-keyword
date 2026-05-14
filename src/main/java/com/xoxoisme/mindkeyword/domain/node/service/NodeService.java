@@ -4,6 +4,7 @@ import com.xoxoisme.mindkeyword.domain.mindmap.entity.MindMap;
 import com.xoxoisme.mindkeyword.domain.mindmap.repository.MindMapRepository;
 import com.xoxoisme.mindkeyword.domain.node.dto.request.NodeChildCreateRequest;
 import com.xoxoisme.mindkeyword.domain.node.dto.request.NodeRootCreateRequest;
+import com.xoxoisme.mindkeyword.domain.node.dto.request.NodeUpdateRequest;
 import com.xoxoisme.mindkeyword.domain.node.dto.response.NodeResponse;
 import com.xoxoisme.mindkeyword.domain.node.entity.Node;
 import com.xoxoisme.mindkeyword.domain.node.repository.NodeRepository;
@@ -15,6 +16,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.JsonNode;
 
 @Service
 @RequiredArgsConstructor
@@ -27,13 +29,7 @@ public class NodeService {
 
     @Transactional
     public NodeResponse createRoot(Long userId, Long mindMapId, NodeRootCreateRequest request) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        MindMap mindMap = mindMapRepository.findById(mindMapId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MIND_MAP_NOT_FOUND));
-        if (!mindMap.getUser().getId().equals(userId)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN);
-        }
+        MindMap mindMap = getOwnedMindMap(userId, mindMapId);
         Node node = Node.createRoot(mindMap, request.content());
         nodeRepository.save(node);
         return NodeResponse.from(node);
@@ -41,17 +37,30 @@ public class NodeService {
 
     @Transactional
     public NodeResponse createChild(Long userId, Long mindMapId, NodeChildCreateRequest request) {
-        User user = userRepository.findById(userId)
+        MindMap mindMap = getOwnedMindMap(userId, mindMapId);
+        Node parent = nodeRepository.findById(request.parentId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.PARENT_NODE_NOT_FOUND));
+        Node node = Node.createChild(mindMap, parent, request.content(), request.positionX(), request.positionY());
+        nodeRepository.save(node);
+        return NodeResponse.from(node);
+    }
+
+    public void update(Long nodeId, Long userId, Long mindMapId, @Valid NodeUpdateRequest request) {
+        MindMap mindMap = getOwnedMindMap(userId, mindMapId);
+        Node node = nodeRepository.findById(nodeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NODE_NOT_FOUND));
+        node.update(request.content(), request.positionX(), request.positionY());
+        nodeRepository.save(node);
+    }
+
+    private MindMap getOwnedMindMap(Long userId, Long mindMapId) {
+        userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         MindMap mindMap = mindMapRepository.findById(mindMapId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MIND_MAP_NOT_FOUND));
         if (!mindMap.getUser().getId().equals(userId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
-        Node parent = nodeRepository.findById(request.parentId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.PARENT_NODE_NOT_FOUND));
-        Node node = Node.createChild(mindMap, parent, request.content(), request.positionX(), request.positionY());
-        nodeRepository.save(node);
-        return NodeResponse.from(node);
+        return mindMap;
     }
 }

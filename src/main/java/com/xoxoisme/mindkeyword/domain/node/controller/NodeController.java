@@ -2,6 +2,7 @@ package com.xoxoisme.mindkeyword.domain.node.controller;
 
 import com.xoxoisme.mindkeyword.domain.node.dto.request.NodeChildCreateRequest;
 import com.xoxoisme.mindkeyword.domain.node.dto.request.NodeRootCreateRequest;
+import com.xoxoisme.mindkeyword.domain.node.dto.request.NodeUpdateRequest;
 import com.xoxoisme.mindkeyword.domain.node.dto.response.NodeResponse;
 import com.xoxoisme.mindkeyword.domain.node.entity.Node;
 import com.xoxoisme.mindkeyword.domain.node.service.NodeService;
@@ -31,5 +32,12 @@ public class NodeController {
     public ApiResponse<NodeResponse> createChild(@PathVariable Long mindMapId, @RequestBody @Valid NodeChildCreateRequest request, Authentication authentication) {
         Long userId = (Long) authentication.getPrincipal();
         return ApiResponse.ok(nodeService.createChild(userId, mindMapId, request));
+    }
+
+    @PatchMapping("/{nodeId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void update(@PathVariable Long nodeId, @PathVariable Long mindMapId, @RequestBody @Valid NodeUpdateRequest request, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        nodeService.update(nodeId, userId, mindMapId, request);
     }
 }
