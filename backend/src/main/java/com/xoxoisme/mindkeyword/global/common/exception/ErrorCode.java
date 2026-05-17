@@ -22,7 +22,10 @@ public enum ErrorCode {
 
     // Node
     PARENT_NODE_NOT_FOUND("N001", HttpStatus.NOT_FOUND, "상위 노드가 존재하지 않습니다."),
-    NODE_NOT_FOUND("N002", HttpStatus.NOT_FOUND, "존재하지 않는 노드입니다.");
+    NODE_NOT_FOUND("N002", HttpStatus.NOT_FOUND, "존재하지 않는 노드입니다."),
+
+    // Folder
+    FOLDER_NOT_FOUND("F001", HttpStatus.NOT_FOUND, "존재하지 않는 폴더입니다.");
 
 
     private final String code;
