@@ -19,4 +19,11 @@ public class Folder extends BaseTimeEntity {
 
     @Column(nullable = false, length = 30)
     private String name;
+
+    public static Folder create(User user, String name) {
+        Folder folder = new Folder();
+        folder.user = user;
+        folder.name = name;
+        return folder;
+    }
 }
