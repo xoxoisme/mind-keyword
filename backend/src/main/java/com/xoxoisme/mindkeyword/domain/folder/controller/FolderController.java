@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/folders")
 @RequiredArgsConstructor
@@ -24,4 +26,10 @@ public class FolderController {
         return ApiResponse.ok(folderService.create(userId, request));
     }
 
+    @PatchMapping("/{folderId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void rename(@PathVariable Long folderId, @RequestBody @Valid FolderRequest request, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        folderService.rename(userId, folderId, request);
+    }
 }
