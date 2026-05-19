@@ -35,4 +35,8 @@ public class FolderService {
         }
         return folder;
     }
+
+    public void rename(Long userId, Long folderId, FolderRequest request) {
+
+    }
 }
