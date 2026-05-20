@@ -21,10 +21,16 @@ public class FolderService {
     private final FolderRepository folderRepository;
     private final UserRepository userRepository;
 
+    @Transactional
     public FolderResponse create(Long userId, FolderRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         return FolderResponse.from(folderRepository.save(Folder.create(user, request.name())));
+    }
+
+    @Transactional
+    public void rename(Long userId, Long folderId, FolderRequest request) {
+        getOwnedFolder(userId, folderId).rename(request.name());
     }
 
     private Folder getOwnedFolder(Long userId, Long folderId) {
@@ -34,9 +40,5 @@ public class FolderService {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
         return folder;
-    }
-
-    public void rename(Long userId, Long folderId, FolderRequest request) {
-
     }
 }

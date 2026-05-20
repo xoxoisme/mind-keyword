@@ -26,4 +26,8 @@ public class Folder extends BaseTimeEntity {
         folder.name = name;
         return folder;
     }
+
+    public void rename(String name) {
+        this.name = name;
+    }
 }
