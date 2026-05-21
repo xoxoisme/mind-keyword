@@ -1,5 +1,6 @@
 package com.xoxoisme.mindkeyword.domain.mindmap.entity;
 
+import com.xoxoisme.mindkeyword.domain.folder.entity.Folder;
 import com.xoxoisme.mindkeyword.domain.user.entity.User;
 import com.xoxoisme.mindkeyword.global.common.entity.BaseTimeEntity;
 import jakarta.persistence.*;
@@ -17,6 +18,10 @@ public class MindMap extends BaseTimeEntity {
     @JoinColumn(nullable = false, name = "user_id")
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "folder_id")
+    private Folder folder;
+
     @Column(nullable = false, length = 30)
     private String title;
 
@@ -29,5 +34,9 @@ public class MindMap extends BaseTimeEntity {
 
     public void update(String title) {
         this.title = title;
+    }
+
+    public void updateFolder(Folder folder) {
+        this.folder = folder;
     }
 }

@@ -32,4 +32,11 @@ public class FolderController {
         Long userId = (Long) authentication.getPrincipal();
         folderService.rename(userId, folderId, request);
     }
+
+    @DeleteMapping
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long folderId, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        folderService.delete(userId, folderId);
+    }
 }

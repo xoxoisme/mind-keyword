@@ -8,4 +8,6 @@ import java.util.List;
 public interface MindMapRepository extends JpaRepository<MindMap, Long> {
 
     List<MindMap> findAllByUserId(Long userId);
+
+    List<MindMap> findAllByFolderId(Long folderId);
 }
