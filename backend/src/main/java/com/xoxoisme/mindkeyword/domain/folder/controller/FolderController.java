@@ -39,4 +39,10 @@ public class FolderController {
         Long userId = (Long) authentication.getPrincipal();
         folderService.delete(userId, folderId);
     }
+
+    @GetMapping
+    public ApiResponse<List<FolderResponse>> getAll(Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ApiResponse.ok(folderService.getAll(userId));
+    }
 }
