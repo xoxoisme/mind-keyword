@@ -46,6 +46,9 @@ public class FolderService {
         folderRepository.delete(folder);
     }
 
+    public List<FolderResponse> getAll(Long userId) {
+    }
+
     private Folder getOwnedFolder(Long userId, Long folderId) {
         Folder folder = folderRepository.findById(folderId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FOLDER_NOT_FOUND));
