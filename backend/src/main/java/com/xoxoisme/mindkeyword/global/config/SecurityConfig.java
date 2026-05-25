@@ -38,9 +38,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/api/users/signup",
-                                "/api/users/login",
-                                "/api/users/logout",
+                                "/api/v1/users/signup",
+                                "/api/v1/users/login",
+                                "/api/v1/users/logout",
                                 "/h2-console/**"
                         ).permitAll()
                         .anyRequest().authenticated()
