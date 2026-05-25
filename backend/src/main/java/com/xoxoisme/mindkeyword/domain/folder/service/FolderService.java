@@ -47,6 +47,9 @@ public class FolderService {
     }
 
     public List<FolderResponse> getAll(Long userId) {
+        return folderRepository.findAllByUserId(userId).stream()
+                .map(FolderResponse::from)
+                .toList();
     }
 
     private Folder getOwnedFolder(Long userId, Long folderId) {
