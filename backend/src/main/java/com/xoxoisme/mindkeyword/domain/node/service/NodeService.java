@@ -57,6 +57,12 @@ public class NodeService {
         getOwnedMindMap(userId, mindMapId);
         Node node = nodeRepository.findById(nodeId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NODE_NOT_FOUND));
+        deleteRecursively(node);
+    }
+
+    private void deleteRecursively(Node node) {
+        nodeRepository.findAllByParentId(node.getId())
+                .forEach(this::deleteRecursively);
         nodeRepository.delete(node);
     }
 

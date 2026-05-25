@@ -9,4 +9,6 @@ import java.util.List;
 
 public interface NodeRepository extends JpaRepository<Node, Long> {
     List<Node> findAllByMindMapId(Long mindMapId);
+
+    List<Node> findAllByParentId(Long id);
 }
