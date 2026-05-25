@@ -1,6 +1,7 @@
 package com.xoxoisme.mindkeyword.domain.mindmap.controller;
 
 import com.xoxoisme.mindkeyword.domain.mindmap.dto.request.MindMapRequest;
+import com.xoxoisme.mindkeyword.domain.mindmap.dto.request.MoveMindMapRequest;
 import com.xoxoisme.mindkeyword.domain.mindmap.dto.response.MindMapResponse;
 import com.xoxoisme.mindkeyword.domain.mindmap.service.MindMapService;
 import com.xoxoisme.mindkeyword.global.common.response.ApiResponse;
@@ -38,6 +39,13 @@ public class MindMapController {
     public void delete(@PathVariable Long mindMapId, Authentication authentication) {
         Long userId = (Long) authentication.getPrincipal();
         mindMapService.delete(userId, mindMapId);
+    }
+
+    @PatchMapping("/{mindMapId}/folder")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void moveToFolder(@PathVariable Long mindMapId, @RequestBody MoveMindMapRequest request, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        mindMapService.moveToFolder(userId, mindMapId, request.folderId());
     }
 
     @GetMapping

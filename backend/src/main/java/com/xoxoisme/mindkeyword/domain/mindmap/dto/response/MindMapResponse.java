@@ -5,9 +5,14 @@ import jakarta.validation.constraints.Size;
 
 public record MindMapResponse(
         Long id,
-        @Size(max = 50) String title
+        @Size(max = 50) String title,
+        Long folderId
 ) {
     public static MindMapResponse from (MindMap mindMap) {
-        return new MindMapResponse(mindMap.getId(), mindMap.getTitle());
+        return new MindMapResponse(
+                mindMap.getId(),
+                mindMap.getTitle(),
+                mindMap.getFolder() != null ? mindMap.getFolder().getId() : null
+        );
     }
 }

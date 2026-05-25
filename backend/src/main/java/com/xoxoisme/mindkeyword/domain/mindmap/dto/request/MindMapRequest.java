@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record MindMapRequest(
-        @NotBlank @Size(max = 30) String title
+        @NotBlank @Size(max = 30) String title,
+        Long folderId
 ) {
 }
