@@ -1,0 +1,34 @@
+@import url('https://cdn.jsdelivr.net/gh/fonts-archive/Paperlogy/Paperlogy.css');
+
+.react-flow__node.selected,
+.react-flow__node:focus,
+.react-flow__node:focus-visible,
+.react-flow__node-editable,
+.react-flow__node-editable.selected,
+.react-flow__node-editable:focus,
+.react-flow__node-editable:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__renderer,
+.react-flow__renderer:focus {
+  outline: none !important;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  font-family: 'Paperlogy', sans-serif;
+  color: #000;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
