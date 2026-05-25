@@ -4,7 +4,64 @@
 
 ## 프로젝트 개요
 
-**mind-keyword**는 키워드 중심의 마인드맵 필기 웹 서비스입니다. 현재 저장소에는 `backend/` 디렉토리(Spring Boot)와 비어 있는 `frontend/` 플레이스홀더가 존재합니다.
+**mind-keyword**는 키워드 중심의 마인드맵 필기 웹 서비스입니다. `backend/` (Spring Boot)와 `frontend/` (React + Vite)로 구성됩니다.
+
+## 프론트엔드 명령어
+
+모든 명령어는 `frontend/` 디렉토리에서 실행합니다.
+
+```bash
+# 개발 서버 실행 (http://localhost:5173)
+npm run dev
+
+# 프로덕션 빌드
+npm run build
+
+# 빌드 결과 미리보기
+npm run preview
+```
+
+**기술 스택:** React 19, TypeScript, Vite 8, React Flow (`@xyflow/react`), Axios
+
+**주요 구조:**
+```
+frontend/src/
+├── api/
+│   ├── client.ts     # axios 인스턴스 (baseURL: http://localhost:8080, JWT 자동 첨부)
+│   ├── auth.ts       # 회원가입, 로그인
+│   └── mindmap.ts    # 마인드맵, 노드, 폴더 CRUD
+├── pages/
+│   ├── LandingPage.tsx    # 서비스 소개 + 로그인 진입
+│   ├── LoginPage.tsx      # 로그인 / 회원가입 폼 (탭 전환)
+│   └── WorkspacePage.tsx  # 사이드바 + React Flow 마인드맵 캔버스
+├── types/
+│   └── index.ts      # MindMap, Folder, NodeData 타입 (백엔드 DTO 1:1 대응)
+├── App.tsx           # 페이지 상태 관리 (landing ↔ workspace), React Router 미사용
+└── main.tsx
+```
+
+**페이지 흐름:**
+- `App.tsx`가 `page` 상태(`'landing' | 'workspace'`)로 화면 전환 (React Router 미사용)
+- `LandingPage` → 로그인 버튼 클릭 → `LoginPage` → 로그인 성공 → `WorkspacePage`
+
+**개발 참고:**
+- API는 `http://localhost:8080`으로 직접 호출 (Vite 프록시 미사용) → CORS 허용 출처: `localhost:5173`, `localhost:3000`
+- JWT 토큰은 `localStorage`에 `token` 키로 저장
+- 라우터 없이 상태 기반으로 페이지 전환하므로 URL이 변하지 않음
+- `WorkspacePage` 내 `Canvas` 컴포넌트가 React Flow 캔버스를 담당
+
+**키보드 단축키 (마인드맵 캔버스):**
+| 단축키 | 동작 |
+|---|---|
+| `Ctrl + 더블클릭` (빈 캔버스) | 루트 노드 생성 |
+| 노드 더블클릭 | 노드 내용 편집 |
+| `Tab` | 선택 노드의 자식 노드 생성 |
+| `Enter` | 형제 노드 생성 (루트면 자식 생성) |
+| `Delete` / `Backspace` | 선택 노드 삭제 (하위 노드 포함) |
+| `←→↑↓` | 인접 노드로 포커스 이동 |
+| `F2` | 선택 노드 편집 모드 |
+
+---
 
 ## 백엔드 명령어
 
@@ -71,23 +128,23 @@ MindMap ──< Node >── Node (자기 참조 부모/자식 트리)
 
 ### API 설계
 
-모든 엔드포인트는 `/api` 접두사를 가집니다. 응답은 `ApiResponse<T>` (`{ "success": true, "data": ... }`)로 감쌉니다. 오류는 `GlobalExceptionHandler`에서 `ErrorResponse`로 반환합니다.
+모든 엔드포인트는 `/api/v1` 접두사를 가집니다. 응답은 `ApiResponse<T>` (`{ "success": true, "data": ... }`)로 감쌉니다. 오류는 `GlobalExceptionHandler`에서 `ErrorResponse`로 반환합니다.
 
 | 리소스 | 기본 경로 |
 |---|---|
-| 사용자 | `/api/users` — `POST /signup`, `POST /login`, `POST /logout` |
-| 폴더 | `/api/folders` |
-| 마인드맵 | `/api/mindmaps` |
-| 노드 | `/api/mindmaps/{mindMapId}/nodes` — 루트 노드는 `/root` |
+| 사용자 | `/api/v1/users` — `POST /signup`, `POST /login`, `POST /logout` |
+| 폴더 | `/api/v1/folders` |
+| 마인드맵 | `/api/v1/mindmaps` |
+| 노드 | `/api/v1/mindmaps/{mindMapId}/nodes` — 루트 노드는 `/root` |
 
-인증 불필요 엔드포인트: `/api/users/signup`, `/api/users/login`, `/api/users/logout`, `/h2-console/**`
+인증 불필요 엔드포인트: `/api/v1/users/signup`, `/api/v1/users/login`, `/api/v1/users/logout`, `/h2-console/**`
 
 ### 인증
 
 - 무상태(Stateless) JWT 방식. `JwtAuthentificationFilter`가 토큰을 추출하고 `userId`(Long)를 `Authentication` principal로 설정합니다.
 - 컨트롤러에서 현재 사용자는 `(Long) authentication.getPrincipal()`로 가져옵니다.
 - JWT 시크릿과 만료 시간은 `jwt.secret`, `jwt.expiration` 프로퍼티로 설정합니다.
-- CORS는 `http://localhost:3000`을 허용하도록 설정되어 있습니다.
+- CORS는 `http://localhost:3000`, `http://localhost:5173`을 허용하도록 설정되어 있습니다.
 
 ### 예외 처리
 
