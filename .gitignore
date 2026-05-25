@@ -39,3 +39,11 @@ out/
 ### 프로퍼티 ###
 *.yaml
 *.yml
+application.properties
+
+### Frontend ###
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
