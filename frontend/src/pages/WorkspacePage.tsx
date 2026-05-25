@@ -275,7 +275,12 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
         : null;
       const goRight = grandparent ? parent.positionX >= grandparent.positionX : true;
       const childX = parent.positionX + (goRight ? 200 : -200);
-      const created = await createChildNode(mindMap.id, Number(selId), '', childX, parent.positionY);
+      // 기존 자식 노드들 아래에 배치 (겹침 방지)
+      const existingChildren = rawNodes.current.filter((n) => n.parentId === Number(selId));
+      const childY = existingChildren.length > 0
+        ? Math.max(...existingChildren.map((n) => n.positionY)) + 80
+        : parent.positionY;
+      const created = await createChildNode(mindMap.id, Number(selId), '', childX, childY);
       selectedNodeId.current = String(created.id);
       editingNodeId.current = String(created.id);
       await load(String(created.id));
@@ -297,8 +302,15 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
       const cur = rawNodes.current.find((n) => String(n.id) === selId);
       if (!cur) return;
       // 루트 노드면 자식 생성, 자식 노드면 형제 생성
+      const isRoot = cur.parentId === null;
       const parentId = cur.parentId ?? cur.id;
-      const created = await createChildNode(mindMap.id, parentId, '', cur.positionX + (cur.parentId ? 0 : 200), cur.positionY + (cur.parentId ? 80 : 0));
+      const newX = cur.positionX + (isRoot ? 200 : 0);
+      // 같은 부모를 공유하는 노드들의 최하단 아래에 배치 (겹침 방지)
+      const sameParentNodes = rawNodes.current.filter((n) => n.parentId === parentId);
+      const newY = sameParentNodes.length > 0
+        ? Math.max(...sameParentNodes.map((n) => n.positionY)) + 80
+        : cur.positionY + (isRoot ? 0 : 80);
+      const created = await createChildNode(mindMap.id, parentId, '', newX, newY);
       selectedNodeId.current = String(created.id);
       editingNodeId.current = String(created.id);
       await load(String(created.id));
@@ -332,7 +344,7 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
     }
 
     if (e.key === 'F2' && selId) startEditing(selId);
-  }, [mindMap.id, load, startEditing, selectNode]);
+  }, [mindMap.id, load, startEditing, selectNode, focusNode]);
 
   const onNodeDragStop: OnNodeDrag<Node<FlowNodeData>> = useCallback(async (_, node) => {
     await updateNode(mindMap.id, Number(node.id), node.data.nodeData.content, node.position.x, node.position.y);
@@ -442,6 +454,63 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
 }
 
 
+interface MindMapItemProps {
+  m: MindMap;
+  indent?: boolean;
+  isSelected: boolean;
+  isDragging: boolean;
+  isEditing: boolean;
+  editingTitle: string;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  onClick: () => void;
+  onTitleChange: (title: string) => void;
+  onRename: () => void;
+  onCancelEdit: () => void;
+  onStartEdit: () => void;
+  onDelete: () => void;
+}
+
+function MindMapItem({ m, indent = false, isSelected, isDragging, isEditing, editingTitle, onDragStart, onDragEnd, onClick, onTitleChange, onRename, onCancelEdit, onStartEdit, onDelete }: MindMapItemProps) {
+  return (
+    <div
+      draggable
+      onDragStart={(e) => { e.stopPropagation(); onDragStart(); }}
+      onDragEnd={onDragEnd}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: `8px 16px 8px ${indent ? 28 : 16}px`,
+        background: isSelected ? '#f0f0f0' : 'transparent',
+        borderLeft: isSelected ? '3px solid #000' : '3px solid transparent',
+        opacity: isDragging ? 0.4 : 1,
+        cursor: 'grab',
+      }}
+      onClick={onClick}
+    >
+      {isEditing ? (
+        <input
+          autoFocus
+          value={editingTitle}
+          onChange={(e) => onTitleChange(e.target.value)}
+          onBlur={onRename}
+          onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') onRename(); if (e.key === 'Escape') onCancelEdit(); }}
+          onClick={(e) => e.stopPropagation()}
+          style={{ flex: 1, fontSize: 13, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Paperlogy, sans-serif' }}
+        />
+      ) : (
+        <span
+          onDoubleClick={(e) => { e.stopPropagation(); onStartEdit(); }}
+          style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}
+        >{m.title}</span>
+      )}
+      <button
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', fontSize: 16, padding: '0 2px', lineHeight: 1, flexShrink: 0 }}
+      >×</button>
+    </div>
+  );
+}
+
 export default function WorkspacePage({ onLogout }: Props) {
   const [mindMaps, setMindMaps] = useState<MindMap[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -530,47 +599,15 @@ export default function WorkspacePage({ onLogout }: Props) {
     setDragOver(null);
   };
 
-  const MindMapItem = ({ m, indent = false }: { m: MindMap; indent?: boolean }) => (
-    <div
-      draggable
-      onDragStart={(e) => { e.stopPropagation(); setDraggingId(m.id); }}
-      onDragEnd={() => { setDraggingId(null); setDragOver(null); }}
-      style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: `8px 16px 8px ${indent ? 28 : 16}px`,
-        background: selected?.id === m.id ? '#f0f0f0' : 'transparent',
-        borderLeft: selected?.id === m.id ? '3px solid #000' : '3px solid transparent',
-        opacity: draggingId === m.id ? 0.4 : 1,
-        cursor: 'grab',
-      }}
-      onClick={() => setSelected(m)}
-    >
-      {editingMindMapId === m.id ? (
-        <input
-          autoFocus
-          value={editingMindMapTitle}
-          onChange={(e) => setEditingMindMapTitle(e.target.value)}
-          onBlur={() => handleRenameMindMap(m.id)}
-          onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') handleRenameMindMap(m.id); if (e.key === 'Escape') setEditingMindMapId(null); }}
-          onClick={(e) => e.stopPropagation()}
-          style={{ flex: 1, fontSize: 13, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Paperlogy, sans-serif' }}
-        />
-      ) : (
-        <span
-          onDoubleClick={(e) => { e.stopPropagation(); setEditingMindMapId(m.id); setEditingMindMapTitle(m.title); }}
-          style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}
-        >{m.title}</span>
-      )}
-      <button
-        onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', fontSize: 16, padding: '0 2px', lineHeight: 1, flexShrink: 0 }}
-      >×</button>
-    </div>
-  );
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const uncategorized = mindMaps.filter((m) => m.folderId === null);
   const isDragOverRoot = dragOver === 'root';
+
+  const handleStartEditMindMap = useCallback((m: MindMap) => {
+    setEditingMindMapId(m.id);
+    setEditingMindMapTitle(m.title);
+  }, []);
 
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
@@ -634,7 +671,23 @@ export default function WorkspacePage({ onLogout }: Props) {
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', fontSize: 16, padding: '0 2px', lineHeight: 1 }}
                   >×</button>
                 </div>
-                {isOpen && folderMaps.map((m) => <MindMapItem key={m.id} m={m} indent />)}
+                {isOpen && folderMaps.map((m) => (
+                  <MindMapItem
+                    key={m.id} m={m} indent
+                    isSelected={selected?.id === m.id}
+                    isDragging={draggingId === m.id}
+                    isEditing={editingMindMapId === m.id}
+                    editingTitle={editingMindMapTitle}
+                    onDragStart={() => setDraggingId(m.id)}
+                    onDragEnd={() => { setDraggingId(null); setDragOver(null); }}
+                    onClick={() => setSelected(m)}
+                    onTitleChange={(title) => setEditingMindMapTitle(title)}
+                    onRename={() => handleRenameMindMap(m.id)}
+                    onCancelEdit={() => setEditingMindMapId(null)}
+                    onStartEdit={() => handleStartEditMindMap(m)}
+                    onDelete={() => handleDelete(m.id)}
+                  />
+                ))}
                 {isOpen && folderMaps.length === 0 && (
                   <p style={{ margin: 0, padding: '4px 28px 8px', fontSize: 12, color: '#ccc' }}>비어 있음</p>
                 )}
@@ -649,7 +702,23 @@ export default function WorkspacePage({ onLogout }: Props) {
             onDrop={(e) => { e.preventDefault(); onDrop(null); }}
             style={{ minHeight: uncategorized.length === 0 ? 48 : 'auto', borderTop: folders.length > 0 ? '1px solid #f0f0f0' : 'none', background: isDragOverRoot ? '#f5f5f5' : 'transparent', transition: 'background 0.1s' }}
           >
-            {uncategorized.map((m) => <MindMapItem key={m.id} m={m} />)}
+            {uncategorized.map((m) => (
+              <MindMapItem
+                key={m.id} m={m}
+                isSelected={selected?.id === m.id}
+                isDragging={draggingId === m.id}
+                isEditing={editingMindMapId === m.id}
+                editingTitle={editingMindMapTitle}
+                onDragStart={() => setDraggingId(m.id)}
+                onDragEnd={() => { setDraggingId(null); setDragOver(null); }}
+                onClick={() => setSelected(m)}
+                onTitleChange={(title) => setEditingMindMapTitle(title)}
+                onRename={() => handleRenameMindMap(m.id)}
+                onCancelEdit={() => setEditingMindMapId(null)}
+                onStartEdit={() => handleStartEditMindMap(m)}
+                onDelete={() => handleDelete(m.id)}
+              />
+            ))}
             {mindMaps.length === 0 && folders.length === 0 && (
               <p style={{ padding: '12px 16px', color: '#bbb', fontSize: 13, margin: 0 }}>마인드맵이 없습니다</p>
             )}
