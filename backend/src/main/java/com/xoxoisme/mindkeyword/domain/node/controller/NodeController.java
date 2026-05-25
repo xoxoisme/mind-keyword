@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/mindmaps/{mindMapId}/nodes")
+@RequestMapping("/api/v1/mindmaps/{mindMapId}/nodes")
 @RequiredArgsConstructor
 public class NodeController {
 

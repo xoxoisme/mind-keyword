@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/mindmaps")
+@RequestMapping("/api/v1/mindmaps")
 @RequiredArgsConstructor
 public class MindMapController {
 
