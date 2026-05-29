@@ -641,8 +641,11 @@ export default function WorkspacePage({ onLogout }: Props) {
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [hoveredItemKey, setHoveredItemKey] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showPdfModal, setShowPdfModal] = useState(false);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
-  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const modalPdfInputRef = useRef<HTMLInputElement>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: 'sidebar' | 'folder' | 'mindmap'; targetId?: number } | null>(null);
 
   useEffect(() => {
@@ -735,20 +738,20 @@ export default function WorkspacePage({ onLogout }: Props) {
       return next;
     });
 
-  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handlePdfUpload = async (file: File) => {
+    setPdfError(null);
     setIsPdfLoading(true);
     try {
       const created = await createMindMapFromPdf(file);
       await loadAll();
       setSelected(created);
-    } catch (e: any) {
-      const msg = e?.response?.data?.message ?? e?.message ?? String(e);
-      alert(`PDF 변환 실패 (${e?.response?.status ?? '?'}): ${msg}`);
+      setShowPdfModal(false);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? err?.message ?? String(err);
+      setPdfError(`변환 실패: ${msg}`);
     } finally {
       setIsPdfLoading(false);
-      if (pdfInputRef.current) pdfInputRef.current.value = '';
+      if (modalPdfInputRef.current) modalPdfInputRef.current.value = '';
     }
   };
 
@@ -895,7 +898,6 @@ export default function WorkspacePage({ onLogout }: Props) {
         {/* 헤더 */}
         <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid #eee' }}>
           <p style={{ margin: '0 0 12px', fontWeight: 700, fontSize: 16, letterSpacing: '-0.5px', textAlign: 'center' }}>Mind Keyword</p>
-          <input ref={pdfInputRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={handlePdfUpload} />
           <div style={{ display: 'flex', gap: 0 }}>
             <button
               onClick={() => handleCreateMindMap()}
@@ -925,16 +927,36 @@ export default function WorkspacePage({ onLogout }: Props) {
                 <span style={{ position: 'absolute', top: -3, right: -5, fontSize: 9, fontWeight: 700, lineHeight: 1 }}>+</span>
               </div>
             </button>
-            {/* PDF AI 변환 */}
+            {/* PDF AI 변환 — 오른쪽 끝 */}
+            <style>{`
+              @keyframes ai-shimmer {
+                0%   { background-position: 0% 50%; }
+                50%  { background-position: 100% 50%; }
+                100% { background-position: 0% 50%; }
+              }
+              .ai-btn {
+                background: linear-gradient(135deg, #a855f7, #6366f1, #3b82f6, #ec4899);
+                background-size: 300% 300%;
+                animation: ai-shimmer 3s ease infinite;
+                box-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
+                transition: box-shadow 0.2s, transform 0.15s;
+              }
+              .ai-btn:hover {
+                box-shadow: 0 0 14px rgba(139, 92, 246, 0.9), 0 0 4px rgba(236, 72, 153, 0.6);
+                transform: scale(1.08);
+              }
+            `}</style>
             <button
-              onClick={() => pdfInputRef.current?.click()}
+              onClick={() => { setPdfError(null); setShowPdfModal(true); }}
               disabled={isPdfLoading}
               title="PDF로 마인드맵 생성"
-              style={{ width: 28, height: 28, background: 'transparent', color: '#000', border: 'none', borderRadius: 6, cursor: isPdfLoading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              onMouseEnter={(e) => { if (!isPdfLoading) e.currentTarget.style.background = '#f0f0f0'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              className="ai-btn"
+              style={{ width: 30, height: 30, border: 'none', borderRadius: 8, cursor: isPdfLoading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', marginLeft: 'auto' }}
             >
-                {isPdfLoading ? '…' : <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '-0.3px', fontFamily: 'Paperlogy, sans-serif' }}>AI</span>}
+              {isPdfLoading
+                ? <span style={{ fontSize: 11 }}>…</span>
+                : <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '-0.3px', fontFamily: 'Paperlogy, sans-serif', textShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>AI</span>
+              }
             </button>
           </div>
         </div>
@@ -1054,6 +1076,59 @@ export default function WorkspacePage({ onLogout }: Props) {
             <CtxItem label="새 마인드맵" onClick={() => { handleCreateMindMap(); setContextMenu(null); }} />
             <CtxItem label="새 폴더" onClick={() => { handleCreateFolder(); setContextMenu(null); }} />
           </>)}
+        </div>
+      )}
+
+      {/* PDF AI 변환 모달 */}
+      {showPdfModal && (
+        <div
+          onClick={() => { if (!isPdfLoading) { setShowPdfModal(false); setPdfError(null); } }}
+          style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, padding: '32px 36px 28px', width: 480, boxShadow: '0 12px 40px rgba(0,0,0,0.15)', fontFamily: 'Paperlogy, sans-serif' }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: 17, fontWeight: 700, color: '#111' }}>PDF로 마인드맵 생성</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#888', lineHeight: 1.6 }}>
+              PDF 파일을 AI가 분석해 마인드맵을 자동으로 만들어 드립니다.<br/>텍스트 기반 PDF만 지원합니다.
+            </p>
+            <input
+              ref={modalPdfInputRef}
+              type="file" accept=".pdf"
+              style={{ display: 'none' }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePdfUpload(f); }}
+            />
+            <div
+              onClick={() => { if (!isPdfLoading) modalPdfInputRef.current?.click(); }}
+              onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={(e) => { e.preventDefault(); setIsDragOver(false); const f = e.dataTransfer.files?.[0]; if (f && !isPdfLoading) handlePdfUpload(f); }}
+              style={{
+                border: `2px dashed ${isDragOver ? '#000' : '#ddd'}`,
+                borderRadius: 12, padding: '32px 20px',
+                textAlign: 'center', cursor: isPdfLoading ? 'wait' : 'pointer',
+                background: isDragOver ? '#f8f8f8' : '#fafafa',
+                transition: 'all 0.15s', marginBottom: 12,
+              }}
+            >
+              {isPdfLoading ? (
+                <div>
+                  <div style={{ fontSize: 28, marginBottom: 8 }}>⏳</div>
+                  <p style={{ margin: 0, fontSize: 13, color: '#888' }}>AI가 분석 중입니다…</p>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 28, marginBottom: 8 }}>📄</div>
+                  <p style={{ margin: '0 0 4px', fontSize: 14, color: '#333', fontWeight: 600 }}>클릭하거나 파일을 끌어다 놓으세요</p>
+                  <p style={{ margin: 0, fontSize: 12, color: '#aaa' }}>PDF 파일 (.pdf)</p>
+                </div>
+              )}
+            </div>
+            {pdfError && <p style={{ margin: '0 0 12px', fontSize: 12, color: '#e53935' }}>{pdfError}</p>}
+            <button
+              onClick={() => { if (!isPdfLoading) { setShowPdfModal(false); setPdfError(null); } }}
+              disabled={isPdfLoading}
+              style={{ width: '100%', padding: '11px', border: 'none', borderRadius: 10, background: '#000', color: '#fff', cursor: isPdfLoading ? 'not-allowed' : 'pointer', fontSize: 14, fontFamily: 'Paperlogy, sans-serif' }}
+            >닫기</button>
+          </div>
         </div>
       )}
 
