@@ -71,6 +71,9 @@ export const createFolder = async (name: string, parentId?: number): Promise<Fol
 export const renameFolder = async (id: number, name: string) =>
   client.patch(`/api/v1/folders/${id}`, { name });
 
+export const moveFolder = (folderId: number, parentId: number | null) =>
+  client.patch(`/api/v1/folders/${folderId}/parent`, { parentId });
+
 export const deleteFolder = (id: number) =>
   client.delete(`/api/v1/folders/${id}`);
 

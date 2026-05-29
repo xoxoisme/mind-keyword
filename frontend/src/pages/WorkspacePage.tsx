@@ -20,12 +20,15 @@ import type { Folder, MindMap, NodeData } from '../types';
 import {
   getMindMaps,
   createMindMap,
+  updateMindMap,
   deleteMindMap,
   moveMindMap,
   getFolders,
   createFolder,
   renameFolder,
   deleteFolder,
+  moveFolder,
+  createMindMapFromPdf,
   getNodes,
   createRootNode,
   createChildNode,
@@ -410,6 +413,7 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
 
   const [showHelp, setShowHelp] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rfInstance = useRef<any>(null);
 
@@ -459,26 +463,52 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
         <strong style={{ fontSize: 18, fontFamily: 'Paperlogy, sans-serif', color: '#000' }}>{mindMap.title}</strong>
       </div>
 
-      {/* PDF 다운로드 버튼 */}
-      <button
-        onClick={handleExportPdf}
-        disabled={isExporting}
-        title="PDF로 저장"
-        tabIndex={-1}
-        style={{ position: 'absolute', top: 16, right: 56, zIndex: 5, width: 28, height: 28, borderRadius: '50%', border: '1.5px solid #ccc', background: '#fff', cursor: isExporting ? 'wait' : 'pointer', fontSize: 13, color: '#aaa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Paperlogy, sans-serif' }}
-      >{isExporting ? '…' : '↓'}</button>
-
-      {/* ? 버튼 */}
-      <button
-        onClick={() => setShowHelp(true)}
-        tabIndex={-1}
-        style={{ position: 'absolute', top: 16, right: 20, zIndex: 5, width: 28, height: 28, borderRadius: '50%', border: '1.5px solid #ccc', background: '#fff', cursor: 'pointer', fontSize: 13, color: '#aaa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Paperlogy, sans-serif' }}
-      >?</button>
+      {/* 설정 버튼 */}
+      <div style={{ position: 'absolute', top: 16, right: 20, zIndex: 5 }}>
+        <button
+          tabIndex={-1}
+          onClick={() => setShowSettings((v) => !v)}
+          style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: '#000', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}
+        >
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="10" cy="10" r="3"/>
+            <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4"/>
+          </svg>
+        </button>
+        {showSettings && (
+          <div
+            onMouseLeave={() => setShowSettings(false)}
+            style={{ position: 'absolute', top: 34, right: 0, background: '#fff', border: '1px solid #e8e8e8', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', minWidth: 140, padding: '4px 0', fontFamily: 'Paperlogy, sans-serif' }}
+          >
+            <div
+              onClick={() => { setShowSettings(false); handleExportPdf(); }}
+              style={{ padding: '9px 16px', fontSize: 13, cursor: isExporting ? 'wait' : 'pointer', color: '#222', display: 'flex', alignItems: 'center', gap: 8 }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f5'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              <span>↓</span> PDF 저장
+            </div>
+            <div
+              onClick={() => { setShowSettings(false); setShowHelp(true); }}
+              style={{ padding: '9px 16px', fontSize: 13, cursor: 'pointer', color: '#222', display: 'flex', alignItems: 'center', gap: 8 }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f5'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              <span>?</span> 단축키 보기
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 빈 캔버스 힌트 */}
       {nodes.length === 0 && (
         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 5, textAlign: 'center', pointerEvents: 'none' }}>
-          <p style={{ margin: 0, fontSize: 14, color: '#ccc', fontFamily: 'Paperlogy, sans-serif' }}>Ctrl + 왼쪽 더블클릭으로 키워드를 만들어보세요</p>
+          <p style={{ margin: 0, fontSize: 14, color: '#ccc', fontFamily: 'Paperlogy, sans-serif', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <code style={{ border: '1px solid #ddd', borderRadius: 6, padding: '2px 7px', fontSize: 13, color: '#999', background: '#fafafa' }}>Ctrl + 더블클릭</code>
+            or
+            <code style={{ border: '1px solid #ddd', borderRadius: 6, padding: '2px 7px', fontSize: 13, color: '#999', background: '#fafafa' }}>Enter</code>
+            를 눌러 시작해보세요
+          </p>
         </div>
       )}
 
@@ -540,24 +570,30 @@ interface MindMapItemProps {
   onStartEdit: () => void;
   onDelete: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
+  isHovered?: boolean;
+  disableHover?: boolean;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
-function MindMapItem({ m, indentLevel = 0, isSelected, isDragging, isEditing, editingTitle, onDragStart, onDragEnd, onClick, onTitleChange, onRename, onCancelEdit, onStartEdit, onDelete, onContextMenu }: MindMapItemProps) {
+function MindMapItem({ m, indentLevel = 0, isSelected, isDragging, isEditing, editingTitle, onDragStart, onDragEnd, onClick, onTitleChange, onRename, onCancelEdit, onStartEdit, onDelete, onContextMenu, isHovered, disableHover, onMouseEnter, onMouseLeave }: MindMapItemProps) {
   return (
     <div
       draggable
       onDragStart={(e) => { e.stopPropagation(); onDragStart(); }}
       onDragEnd={onDragEnd}
       onContextMenu={onContextMenu}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: `8px 16px 8px ${16 + indentLevel * 12}px`,
-        background: isSelected ? '#f0f0f0' : 'transparent',
+        background: isSelected ? '#f0f0f0' : (!disableHover && isHovered) ? '#f7f7f7' : 'transparent',
         borderLeft: isSelected ? '3px solid #000' : '3px solid transparent',
         opacity: isDragging ? 0.4 : 1,
         cursor: 'grab',
       }}
-      onClick={onClick}
     >
       {isEditing ? (
         <input
@@ -575,10 +611,6 @@ function MindMapItem({ m, indentLevel = 0, isSelected, isDragging, isEditing, ed
           style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}
         >{m.title}</span>
       )}
-      <button
-        onClick={(e) => { e.stopPropagation(); onDelete(); }}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', fontSize: 16, padding: '0 2px', lineHeight: 1, flexShrink: 0 }}
-      >×</button>
     </div>
   );
 }
@@ -600,12 +632,17 @@ export default function WorkspacePage({ onLogout }: Props) {
   const [selected, setSelected] = useState<MindMap | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
   const [draggingId, setDraggingId] = useState<number | null>(null);
+  const [draggingFolderId, setDraggingFolderId] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | 'root' | null>(null);
   const [editingFolderId, setEditingFolderId] = useState<number | null>(null);
   const [editingFolderName, setEditingFolderName] = useState('');
   const [editingMindMapId, setEditingMindMapId] = useState<number | null>(null);
   const [editingMindMapTitle, setEditingMindMapTitle] = useState('');
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [hoveredItemKey, setHoveredItemKey] = useState<string | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: 'sidebar' | 'folder' | 'mindmap'; targetId?: number } | null>(null);
 
   useEffect(() => {
@@ -624,16 +661,22 @@ export default function WorkspacePage({ onLogout }: Props) {
   useEffect(() => { loadAll(); }, []);
 
   const handleCreateMindMap = async (folderId?: number) => {
-    const created = await createMindMap('새 마인드맵', folderId);
-    setMindMaps((prev) => [...prev, created]);
-    setSelected(created);
-    setEditingMindMapId(created.id);
-    setEditingMindMapTitle('새 마인드맵');
+    try {
+      const created = await createMindMap('새 마인드맵', folderId);
+      setMindMaps((prev) => [...prev, created]);
+      setSelected(created);
+      setEditingMindMapId(created.id);
+      setEditingMindMapTitle('새 마인드맵');
+    } catch (e: any) {
+      const msg = e?.response?.data?.message ?? e?.message ?? String(e);
+      console.error('마인드맵 생성 실패:', e);
+      alert(`마인드맵 생성 실패 (${e?.response?.status ?? '?'}): ${msg}`);
+    }
   };
 
   const handleRenameMindMap = async (id: number) => {
     const title = editingMindMapTitle.trim() || '새 마인드맵';
-    await import('../api/mindmap').then(({ updateMindMap }) => updateMindMap(id, title));
+    await updateMindMap(id, title);
     setMindMaps((prev) => prev.map((m) => m.id === id ? { ...m, title } : m));
     setSelected((prev) => prev?.id === id ? { ...prev, title } : prev);
     setEditingMindMapId(null);
@@ -646,16 +689,21 @@ export default function WorkspacePage({ onLogout }: Props) {
   };
 
   const handleCreateFolder = async () => {
-    const created = await createFolder('새 폴더', selectedFolderId ?? undefined);
-    setFolders((prev) => [...prev, created]);
-    setExpandedFolders((prev) => {
-      const next = new Set(prev);
-      if (selectedFolderId) next.add(selectedFolderId);
-      next.add(created.id);
-      return next;
-    });
-    setEditingFolderId(created.id);
-    setEditingFolderName('새 폴더');
+    try {
+      const created = await createFolder('새 폴더', selectedFolderId ?? undefined);
+      setFolders((prev) => [...prev, created]);
+      setExpandedFolders((prev) => {
+        const next = new Set(prev);
+        if (selectedFolderId) next.add(selectedFolderId);
+        next.add(created.id);
+        return next;
+      });
+      setEditingFolderId(created.id);
+      setEditingFolderName('새 폴더');
+    } catch (e) {
+      console.error('폴더 생성 실패:', e);
+      alert('폴더 생성에 실패했습니다. 백엔드 서버를 확인해주세요.');
+    }
   };
 
   const handleRenameFolder = async (id: number) => {
@@ -687,14 +735,51 @@ export default function WorkspacePage({ onLogout }: Props) {
       return next;
     });
 
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsPdfLoading(true);
+    try {
+      const created = await createMindMapFromPdf(file);
+      await loadAll();
+      setSelected(created);
+    } catch (e: any) {
+      const msg = e?.response?.data?.message ?? e?.message ?? String(e);
+      alert(`PDF 변환 실패 (${e?.response?.status ?? '?'}): ${msg}`);
+    } finally {
+      setIsPdfLoading(false);
+      if (pdfInputRef.current) pdfInputRef.current.value = '';
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     onLogout();
   };
 
-  const onDrop = async (folderId: number | null) => {
-    if (draggingId !== null) await handleMove(draggingId, folderId);
+  // targetId가 ancestorId의 자손인지 확인 (순환 방지)
+  const isDescendant = (targetId: number, ancestorId: number): boolean => {
+    if (targetId === ancestorId) return true;
+    const target = folders.find((f) => f.id === targetId);
+    if (!target || target.parentId === null) return false;
+    return isDescendant(target.parentId, ancestorId);
+  };
+
+  const handleMoveFolder = async (folderId: number, newParentId: number | null) => {
+    if (newParentId !== null && isDescendant(newParentId, folderId)) return;
+    try {
+      await moveFolder(folderId, newParentId);
+      await loadAll();
+    } catch (e: any) {
+      console.error('폴더 이동 실패:', e);
+    }
+  };
+
+  const onDrop = async (targetId: number | null) => {
+    if (draggingFolderId !== null) await handleMoveFolder(draggingFolderId, targetId);
+    else if (draggingId !== null) await handleMove(draggingId, targetId);
     setDraggingId(null);
+    setDraggingFolderId(null);
     setDragOver(null);
   };
 
@@ -719,18 +804,25 @@ export default function WorkspacePage({ onLogout }: Props) {
     const isOpen = expandedFolders.has(folder.id);
     const isOver = dragOver === folder.id;
     const isFolderSelected = selectedFolderId === folder.id;
+    const isFolderHovered = hoveredItemKey === `folder-${folder.id}`;
     const indentPx = 16 + depth * 12;
     return (
       <div key={folder.id}>
         <div
+          draggable
+          onDragStart={(e) => { e.stopPropagation(); setDraggingFolderId(folder.id); }}
+          onDragEnd={() => { setDraggingFolderId(null); setDragOver(null); }}
+          onMouseEnter={() => setHoveredItemKey(`folder-${folder.id}`)}
+          onMouseLeave={() => setHoveredItemKey(null)}
           onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedFolderId(folder.id); setContextMenu({ x: e.clientX, y: e.clientY, type: 'folder', targetId: folder.id }); }}
-          onDragOver={(e) => { e.preventDefault(); setDragOver(folder.id); if (!isOpen) toggleFolder(folder.id); }}
+          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(folder.id); if (!isOpen) toggleFolder(folder.id); }}
           onDragLeave={() => setDragOver(null)}
-          onDrop={(e) => { e.preventDefault(); onDrop(folder.id); }}
+          onDrop={(e) => { e.preventDefault(); e.stopPropagation(); onDrop(folder.id); }}
           style={{
             display: 'flex', alignItems: 'center', padding: `8px 16px 8px ${indentPx}px`, cursor: 'pointer',
-            background: isOver ? '#f0f4ff' : isFolderSelected ? '#f0f0f0' : 'transparent',
+            background: isOver ? '#f0f4ff' : isFolderSelected ? '#f0f0f0' : (!selected && isFolderHovered) ? '#f7f7f7' : 'transparent',
             borderLeft: isOver ? '3px solid #666' : isFolderSelected ? '3px solid #000' : '3px solid transparent',
+            opacity: draggingFolderId === folder.id ? 0.4 : 1,
             transition: 'background 0.1s',
           }}
           onClick={(e) => { e.stopPropagation(); setSelectedFolderId((prev) => prev === folder.id ? null : folder.id); }}
@@ -756,10 +848,6 @@ export default function WorkspacePage({ onLogout }: Props) {
               style={{ fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}
             >{folder.name}</span>
           )}
-          <button
-            onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', fontSize: 16, padding: '0 2px', lineHeight: 1 }}
-          >×</button>
         </div>
         {isOpen && (
           <>
@@ -780,6 +868,10 @@ export default function WorkspacePage({ onLogout }: Props) {
                 onStartEdit={() => handleStartEditMindMap(m)}
                 onDelete={() => handleDelete(m.id)}
                 onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, type: 'mindmap', targetId: m.id }); }}
+                isHovered={hoveredItemKey === `mindmap-${m.id}`}
+                disableHover={!!selected}
+                onMouseEnter={() => setHoveredItemKey(`mindmap-${m.id}`)}
+                onMouseLeave={() => setHoveredItemKey(null)}
               />
             ))}
             {subFolders.length === 0 && folderMaps.length === 0 && (
@@ -799,34 +891,50 @@ export default function WorkspacePage({ onLogout }: Props) {
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
       {/* 사이드바 */}
-      <div style={{ width: sidebarOpen ? 240 : 0, display: 'flex', flexDirection: 'column', borderRight: sidebarOpen ? '1px solid #eee' : 'none', background: '#fafafa', flexShrink: 0, overflow: 'hidden' }}>
+      <div style={{ width: sidebarOpen ? 240 : 0, display: 'flex', flexDirection: 'column', borderRight: sidebarOpen ? '1px solid #eee' : 'none', background: '#fafafa', flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
         {/* 헤더 */}
         <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid #eee' }}>
           <p style={{ margin: '0 0 12px', fontWeight: 700, fontSize: 16, letterSpacing: '-0.5px', textAlign: 'center' }}>Mind Keyword</p>
-          <div style={{ display: 'flex', gap: 2 }}>
-            {/* 새 마인드맵 — 파일 아이콘만 */}
+          <input ref={pdfInputRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={handlePdfUpload} />
+          <div style={{ display: 'flex', gap: 0 }}>
             <button
               onClick={() => handleCreateMindMap()}
               title="새 마인드맵"
-              style={{ flex: 1, height: 36, background: 'transparent', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}
+              style={{ width: 28, height: 28, background: 'transparent', color: '#000', border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               onMouseEnter={(e) => { e.currentTarget.style.background = '#f0f0f0'; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
             >
-              <svg width="18" height="20" viewBox="0 0 16 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 2h7l3 3v13H3z"/><path d="M10 2v4h3"/>
-              </svg>
+              <div style={{ position: 'relative', display: 'inline-flex' }}>
+                <svg width="13" height="15" viewBox="0 0 16 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 2h7l3 3v13H3z"/><path d="M10 2v4h3"/>
+                </svg>
+                <span style={{ position: 'absolute', top: -3, right: -5, fontSize: 9, fontWeight: 700, lineHeight: 1 }}>+</span>
+              </div>
             </button>
-            {/* 새 폴더 — 폴더 아이콘만 / 선택된 폴더 있으면 하위 폴더 생성 */}
             <button
               onClick={handleCreateFolder}
               title={selectedFolderId ? '하위 폴더 추가' : '새 폴더'}
-              style={{ flex: 1, height: 36, background: selectedFolderId ? '#e8e8e8' : 'transparent', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}
+              style={{ width: 28, height: 28, background: 'transparent', color: '#000', border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               onMouseEnter={(e) => { e.currentTarget.style.background = '#f0f0f0'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = selectedFolderId ? '#e8e8e8' : 'transparent'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
             >
-              <svg width="20" height="16" viewBox="0 0 20 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2 4h6l2 2h8v8H2z"/>
-              </svg>
+              <div style={{ position: 'relative', display: 'inline-flex' }}>
+                <svg width="15" height="12" viewBox="0 0 20 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 4h6l2 2h8v8H2z"/>
+                </svg>
+                <span style={{ position: 'absolute', top: -3, right: -5, fontSize: 9, fontWeight: 700, lineHeight: 1 }}>+</span>
+              </div>
+            </button>
+            {/* PDF AI 변환 */}
+            <button
+              onClick={() => pdfInputRef.current?.click()}
+              disabled={isPdfLoading}
+              title="PDF로 마인드맵 생성"
+              style={{ width: 28, height: 28, background: 'transparent', color: '#000', border: 'none', borderRadius: 6, cursor: isPdfLoading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              onMouseEnter={(e) => { if (!isPdfLoading) e.currentTarget.style.background = '#f0f0f0'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+                {isPdfLoading ? '…' : <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '-0.3px', fontFamily: 'Paperlogy, sans-serif' }}>AI</span>}
             </button>
           </div>
         </div>
@@ -834,7 +942,7 @@ export default function WorkspacePage({ onLogout }: Props) {
         {/* 목록 */}
         <div
           style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}
-          onClick={() => setSelectedFolderId(null)}
+          onClick={() => { setSelectedFolderId(null); setSelected(null); }}
           onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, type: 'sidebar' }); }}
         >
           {/* 폴더 트리 */}
@@ -863,14 +971,39 @@ export default function WorkspacePage({ onLogout }: Props) {
                 onStartEdit={() => handleStartEditMindMap(m)}
                 onDelete={() => handleDelete(m.id)}
                 onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, type: 'mindmap', targetId: m.id }); }}
+                isHovered={hoveredItemKey === `mindmap-${m.id}`}
+                disableHover={!!selected}
+                onMouseEnter={() => setHoveredItemKey(`mindmap-${m.id}`)}
+                onMouseLeave={() => setHoveredItemKey(null)}
               />
             ))}
           </div>
         </div>
 
-        {/* 하단 */}
-        <div style={{ padding: '12px 16px', borderTop: '1px solid #eee' }}>
-          <button onClick={handleLogout} style={{ width: '100%', padding: '8px', border: '1px solid #e0e0e0', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'Paperlogy, sans-serif', color: '#888' }}>로그아웃</button>
+        {/* 사용자 아이콘 */}
+        <div style={{ position: 'absolute', bottom: 16, left: 16 }}>
+          <button
+            onClick={() => setShowUserMenu((v) => !v)}
+            style={{ width: 32, height: 32, borderRadius: '50%', border: '1.5px solid #ddd', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555' }}
+          >
+            <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="10" cy="7" r="3.5"/>
+              <path d="M2 18c0-4 3.6-7 8-7s8 3 8 7"/>
+            </svg>
+          </button>
+          {showUserMenu && (
+            <div
+              onMouseLeave={() => setShowUserMenu(false)}
+              style={{ position: 'absolute', bottom: 40, left: 0, background: '#fff', border: '1px solid #e8e8e8', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', minWidth: 120, padding: '4px 0', fontFamily: 'Paperlogy, sans-serif', zIndex: 100 }}
+            >
+              <div
+                onClick={() => { setShowUserMenu(false); handleLogout(); }}
+                style={{ padding: '9px 16px', fontSize: 13, cursor: 'pointer', color: '#222' }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f5'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              >로그아웃</div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -904,7 +1037,7 @@ export default function WorkspacePage({ onLogout }: Props) {
             const f = folders.find((x) => x.id === contextMenu.targetId);
             return (<>
               <CtxItem label="새 마인드맵" onClick={() => { handleCreateMindMap(contextMenu.targetId); setContextMenu(null); }} />
-              <CtxItem label="하위 폴더 추가" onClick={() => { handleCreateFolder(); setContextMenu(null); }} />
+              <CtxItem label="새 폴더" onClick={() => { handleCreateFolder(); setContextMenu(null); }} />
               <div style={{ height: 1, background: '#f0f0f0', margin: '4px 0' }} />
               <CtxItem label="이름 변경" onClick={() => { if (f) { setEditingFolderId(f.id); setEditingFolderName(f.name); } setContextMenu(null); }} />
               <CtxItem label="삭제" danger onClick={() => { setContextMenu(null); if (contextMenu.targetId) handleDeleteFolder(contextMenu.targetId); }} />
