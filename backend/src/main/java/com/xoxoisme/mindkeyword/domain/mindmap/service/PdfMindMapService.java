@@ -15,6 +15,10 @@ import com.xoxoisme.mindkeyword.global.common.exception.BusinessException;
 import com.xoxoisme.mindkeyword.global.common.exception.ErrorCode;
 import com.xoxoisme.mindkeyword.global.llm.MindMapTree;
 import com.xoxoisme.mindkeyword.global.llm.TreeNode;
+import com.xoxoisme.mindkeyword.global.llm.gemini.dto.GeminiContent;
+import com.xoxoisme.mindkeyword.global.llm.gemini.dto.GeminiPart;
+import com.xoxoisme.mindkeyword.global.llm.gemini.dto.GeminiRequest;
+import com.xoxoisme.mindkeyword.global.llm.gemini.dto.GeminiResponse;
 import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -75,7 +79,10 @@ public class PdfMindMapService {
                 .bodyValue(request)
                 .retrieve()
                 .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
-                        res -> Mono.error(new BusinessException(ErrorCode.OPENAI_API_FAILED)))
+                        res -> res.bodyToMono(String.class).flatMap(body -> {
+                            System.err.println("[Gemini Error] status=" + res.statusCode() + " body=" + body);
+                            return Mono.error(new BusinessException(ErrorCode.OPENAI_API_FAILED));
+                        }))
                 .bodyToMono(GeminiResponse.class)
                 .block();
 
