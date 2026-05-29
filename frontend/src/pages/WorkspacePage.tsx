@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { toPng } from 'html-to-image';
+import jsPDF from 'jspdf';
 import {
   ReactFlow,
   addEdge,
@@ -29,6 +31,7 @@ import {
   createChildNode,
   updateNode,
   deleteNode,
+  createMindMapFromPdf,
 } from '../api/mindmap';
 
 interface Props {
@@ -39,6 +42,7 @@ interface FlowNodeData extends Record<string, unknown> {
   nodeData: NodeData;
   isEditing: boolean;
   onSave: (id: string, content: string) => void;
+  editingInitialValue?: string;
 }
 
 // 원(80x80) 위 8방향 핸들 위치 (중심 기준 반지름 40px)
@@ -58,8 +62,18 @@ function EditableNode({ id, data, selected }: NodeProps<Node<FlowNodeData>>) {
   const isRoot = data.nodeData.parentId === null;
 
   useEffect(() => {
-    if (data.isEditing) setTimeout(() => inputRef.current?.focus(), 0);
-  }, [data.isEditing]);
+    if (!data.isEditing) return;
+    const timer = setTimeout(() => {
+      if (!inputRef.current) return;
+      if (data.editingInitialValue !== undefined) {
+        inputRef.current.value = data.editingInitialValue;
+      }
+      inputRef.current.focus();
+      const len = inputRef.current.value.length;
+      inputRef.current.setSelectionRange(len, len);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [data.isEditing, data.editingInitialValue]);
 
   const invisibleStyle = { width: 1, height: 1, minWidth: 0, minHeight: 0, background: 'transparent', border: 'none' };
 
@@ -89,11 +103,12 @@ function EditableNode({ id, data, selected }: NodeProps<Node<FlowNodeData>>) {
           {data.isEditing ? (
             <input
               ref={inputRef}
-              defaultValue={data.nodeData.content || ''}
+              defaultValue={data.editingInitialValue !== undefined ? data.editingInitialValue : (data.nodeData.content || '')}
               style={{ border: 'none', outline: 'none', fontSize: 13, background: 'transparent', color: '#000', fontFamily: 'Paperlogy, sans-serif', width: 60, textAlign: 'center' }}
               onBlur={(e) => data.onSave(id, e.target.value)}
               onKeyDown={(e) => {
                 e.stopPropagation();
+                if (e.key === 'Tab') e.preventDefault(); // 브라우저 기본 Tab 포커스 이동 방지
                 if (e.key === 'Enter' || e.key === 'Escape') data.onSave(id, (e.target as HTMLInputElement).value);
               }}
             />
@@ -116,11 +131,12 @@ function EditableNode({ id, data, selected }: NodeProps<Node<FlowNodeData>>) {
       {data.isEditing ? (
         <input
           ref={inputRef}
-          defaultValue={data.nodeData.content || ''}
+          defaultValue={data.editingInitialValue !== undefined ? data.editingInitialValue : (data.nodeData.content || '')}
           style={{ border: 'none', outline: 'none', fontSize: 14, background: 'transparent', color: '#000', fontFamily: 'Paperlogy, sans-serif', minWidth: 60 }}
           onBlur={(e) => data.onSave(id, e.target.value)}
           onKeyDown={(e) => {
             e.stopPropagation();
+            if (e.key === 'Tab') e.preventDefault(); // 브라우저 기본 Tab 포커스 이동 방지
             if (e.key === 'Enter' || e.key === 'Escape') data.onSave(id, (e.target as HTMLInputElement).value);
           }}
         />
@@ -155,12 +171,17 @@ function getClosestRootHandle(parent: NodeData, child: NodeData): string {
   return `src-${ROOT_DIRS[idx]}`;
 }
 
-function toFlow(nodes: NodeData[], editingId: string | null, onSave: (id: string, content: string) => void): { flowNodes: Node<FlowNodeData>[]; flowEdges: Edge[] } {
+function toFlow(nodes: NodeData[], editingId: string | null, onSave: (id: string, content: string) => void, editingInitialValue?: string): { flowNodes: Node<FlowNodeData>[]; flowEdges: Edge[] } {
   return {
     flowNodes: nodes.map((n) => ({
       id: String(n.id), type: 'editable',
       position: { x: n.positionX, y: n.positionY },
-      data: { nodeData: n, isEditing: editingId === String(n.id), onSave },
+      data: {
+        nodeData: n,
+        isEditing: editingId === String(n.id),
+        onSave,
+        editingInitialValue: editingId === String(n.id) ? editingInitialValue : undefined,
+      },
     })),
     flowEdges: nodes.filter((n) => n.parentId !== null).map((n) => {
       const parent = nodes.find((p) => p.id === n.parentId);
@@ -189,12 +210,16 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
   const selectedNodeId = useRef<string | null>(null);
   const editingNodeId = useRef<string | null>(null);
   const rawNodes = useRef<NodeData[]>([]);
+  // 저장 직후 Enter/Tab이 즉시 새 노드를 만드는 현상 방지
+  const justSaved = useRef(false);
 
   const handleSave = useCallback(async (id: string, content: string) => {
     editingNodeId.current = null;
+    justSaved.current = true;
+    setTimeout(() => { justSaved.current = false; }, 200);
     const node = rawNodes.current.find((n) => String(n.id) === id);
     if (!node) return;
-    // 낙관적 업데이트: 서버 응답을 기다리지 않고 즉시 UI 갱신 → 빠른 연속 Enter 시 race condition 방지
+    // 낙관적 업데이트: 서버 응답을 기다리지 않고 즉시 UI 갱신
     const updated = rawNodes.current.map((n) => String(n.id) === id ? { ...n, content } : n);
     rawNodes.current = updated;
     const { flowNodes, flowEdges } = toFlow(updated, null, handleSave);
@@ -204,9 +229,9 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
     await updateNode(mindMap.id, Number(id), content, node.positionX, node.positionY);
   }, [mindMap.id, setNodes, setEdges]);
 
-  const buildNodes = useCallback((data: NodeData[], editingId: string | null) => {
+  const buildNodes = useCallback((data: NodeData[], editingId: string | null, initialValue?: string) => {
     rawNodes.current = data;
-    const { flowNodes, flowEdges } = toFlow(data, editingId, handleSave);
+    const { flowNodes, flowEdges } = toFlow(data, editingId, handleSave, initialValue);
     setNodes(flowNodes); setEdges(flowEdges);
   }, [handleSave, setNodes, setEdges]);
 
@@ -217,9 +242,9 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
 
   useEffect(() => { load(); innerRef.current?.focus(); }, [load]);
 
-  const startEditing = useCallback((id: string) => {
+  const startEditing = useCallback((id: string, initialValue?: string) => {
     editingNodeId.current = id;
-    buildNodes(rawNodes.current, id);
+    buildNodes(rawNodes.current, id, initialValue);
   }, [buildNodes]);
 
   // 특정 노드 위치로 뷰포트 부드럽게 이동
@@ -234,7 +259,18 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
   }, [setNodes]);
 
   const handleKeyDown = useCallback(async (e: React.KeyboardEvent) => {
-    if (editingNodeId.current) return;
+    // input에 실제로 포커스가 있으면 EditableNode가 직접 처리
+    if (editingNodeId.current && document.activeElement?.tagName === 'INPUT') return;
+    // editingNodeId는 세팅됐지만 아직 input이 포커스를 못 받은 순간: 문자 키만 전달
+    if (editingNodeId.current) {
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const pendingNode = rawNodes.current.find((n) => String(n.id) === editingNodeId.current);
+        if (pendingNode) startEditing(editingNodeId.current, pendingNode.content ? undefined : e.key);
+      }
+      return;
+    }
+    // 저장 직후 Enter/Tab이 즉시 새 노드를 만드는 현상 방지
+    if (justSaved.current && (e.key === 'Enter' || e.key === 'Tab')) return;
     const selId = selectedNodeId.current;
 
     if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
@@ -275,15 +311,12 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
         : null;
       const goRight = grandparent ? parent.positionX >= grandparent.positionX : true;
       const childX = parent.positionX + (goRight ? 200 : -200);
-      // 기존 자식 노드들 아래에 배치 (겹침 방지)
-      const existingChildren = rawNodes.current.filter((n) => n.parentId === Number(selId));
-      const childY = existingChildren.length > 0
-        ? Math.max(...existingChildren.map((n) => n.positionY)) + 80
-        : parent.positionY;
+      // 부모 노드 기준 같은 Y에 배치
+      const childY = parent.positionY;
       const created = await createChildNode(mindMap.id, Number(selId), '', childX, childY);
       selectedNodeId.current = String(created.id);
       editingNodeId.current = String(created.id);
-      await load(String(created.id));
+      buildNodes([...rawNodes.current, created], String(created.id));
       focusNode(created.positionX, created.positionY);
     }
 
@@ -294,7 +327,7 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
           const created = await createRootNode(mindMap.id, '');
           selectedNodeId.current = String(created.id);
           editingNodeId.current = String(created.id);
-          await load(String(created.id));
+          buildNodes([created], String(created.id));
           focusNode(created.positionX, created.positionY);
         }
         return;
@@ -305,15 +338,12 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
       const isRoot = cur.parentId === null;
       const parentId = cur.parentId ?? cur.id;
       const newX = cur.positionX + (isRoot ? 200 : 0);
-      // 같은 부모를 공유하는 노드들의 최하단 아래에 배치 (겹침 방지)
-      const sameParentNodes = rawNodes.current.filter((n) => n.parentId === parentId);
-      const newY = sameParentNodes.length > 0
-        ? Math.max(...sameParentNodes.map((n) => n.positionY)) + 80
-        : cur.positionY + (isRoot ? 0 : 80);
+      // 선택된 노드 기준 바로 아래에 배치
+      const newY = cur.positionY + (isRoot ? 0 : 80);
       const created = await createChildNode(mindMap.id, parentId, '', newX, newY);
       selectedNodeId.current = String(created.id);
       editingNodeId.current = String(created.id);
-      await load(String(created.id));
+      buildNodes([...rawNodes.current, created], String(created.id));
       focusNode(created.positionX, created.positionY);
     }
 
@@ -344,7 +374,15 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
     }
 
     if (e.key === 'F2' && selId) startEditing(selId);
-  }, [mindMap.id, load, startEditing, selectNode, focusNode]);
+
+    // 일반 문자 키: 노드 선택 상태에서 바로 타이핑 시작
+    // 빈 노드면 해당 글자가 첫 글자, 내용 있는 노드면 커서를 맨 끝에서 이어쓰기
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && selId) {
+      const cur = rawNodes.current.find((n) => String(n.id) === selId);
+      if (!cur) return;
+      startEditing(selId, cur.content ? undefined : e.key);
+    }
+  }, [mindMap.id, load, buildNodes, startEditing, selectNode, focusNode]);
 
   const onNodeDragStop: OnNodeDrag<Node<FlowNodeData>> = useCallback(async (_, node) => {
     await updateNode(mindMap.id, Number(node.id), node.data.nodeData.content, node.position.x, node.position.y);
@@ -372,8 +410,31 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
   );
 
   const [showHelp, setShowHelp] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rfInstance = useRef<any>(null);
+
+  const handleExportPdf = useCallback(async () => {
+    if (!rfInstance.current || !innerRef.current || isExporting) return;
+    setIsExporting(true);
+    try {
+      rfInstance.current.fitView({ padding: 0.15, duration: 0 });
+      const flowEl = innerRef.current.querySelector('.react-flow') as HTMLElement;
+      if (!flowEl) return;
+      const dataUrl = await toPng(flowEl, { backgroundColor: '#ffffff', pixelRatio: 2 });
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise<void>((resolve) => { img.onload = () => resolve(); });
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = pdf.internal.pageSize.getHeight();
+      const ratio = Math.min(pdfW / img.width, pdfH / img.height);
+      pdf.addImage(dataUrl, 'PNG', 0, 0, img.width * ratio, img.height * ratio);
+      pdf.save(`${mindMap.title}.pdf`);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [mindMap.title, isExporting]);
 
   const handleCanvasDoubleClick = useCallback(async (e: React.MouseEvent) => {
     if (!e.ctrlKey && !e.metaKey) return;
@@ -399,9 +460,19 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
         <strong style={{ fontSize: 18, fontFamily: 'Paperlogy, sans-serif', color: '#000' }}>{mindMap.title}</strong>
       </div>
 
+      {/* PDF 다운로드 버튼 */}
+      <button
+        onClick={handleExportPdf}
+        disabled={isExporting}
+        title="PDF로 저장"
+        tabIndex={-1}
+        style={{ position: 'absolute', top: 16, right: 56, zIndex: 5, width: 28, height: 28, borderRadius: '50%', border: '1.5px solid #ccc', background: '#fff', cursor: isExporting ? 'wait' : 'pointer', fontSize: 13, color: '#aaa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Paperlogy, sans-serif' }}
+      >{isExporting ? '…' : '↓'}</button>
+
       {/* ? 버튼 */}
       <button
         onClick={() => setShowHelp(true)}
+        tabIndex={-1}
         style={{ position: 'absolute', top: 16, right: 20, zIndex: 5, width: 28, height: 28, borderRadius: '50%', border: '1.5px solid #ccc', background: '#fff', cursor: 'pointer', fontSize: 13, color: '#aaa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Paperlogy, sans-serif' }}
       >?</button>
 
@@ -522,6 +593,8 @@ export default function WorkspacePage({ onLogout }: Props) {
   const [editingFolderName, setEditingFolderName] = useState('');
   const [editingMindMapId, setEditingMindMapId] = useState<number | null>(null);
   const [editingMindMapTitle, setEditingMindMapTitle] = useState('');
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const loadAll = async () => {
     const [maps, flds] = await Promise.all([getMindMaps(), getFolders()]);
@@ -588,6 +661,22 @@ export default function WorkspacePage({ onLogout }: Props) {
       return next;
     });
 
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsPdfLoading(true);
+    try {
+      const created = await createMindMapFromPdf(file);
+      await loadAll();
+      setSelected(created);
+    } catch {
+      alert('PDF 마인드맵 생성에 실패했습니다. 백엔드 서버를 확인해주세요.');
+    } finally {
+      setIsPdfLoading(false);
+      if (pdfInputRef.current) pdfInputRef.current.value = '';
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     onLogout();
@@ -626,6 +715,18 @@ export default function WorkspacePage({ onLogout }: Props) {
               style={{ flex: 1, padding: '8px 0', background: '#fff', color: '#444', border: '1px solid #ddd', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontFamily: 'Paperlogy, sans-serif' }}
             >+ 폴더</button>
           </div>
+          <input
+            ref={pdfInputRef}
+            type="file"
+            accept=".pdf"
+            style={{ display: 'none' }}
+            onChange={handlePdfUpload}
+          />
+          <button
+            onClick={() => pdfInputRef.current?.click()}
+            disabled={isPdfLoading}
+            style={{ marginTop: 6, width: '100%', padding: '8px 0', background: '#fff', color: isPdfLoading ? '#bbb' : '#444', border: '1px solid #ddd', borderRadius: 8, cursor: isPdfLoading ? 'wait' : 'pointer', fontSize: 13, fontFamily: 'Paperlogy, sans-serif' }}
+          >{isPdfLoading ? 'PDF 변환 중…' : '↑ PDF로 생성'}</button>
         </div>
 
         {/* 목록 */}

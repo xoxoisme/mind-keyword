@@ -73,3 +73,13 @@ export const renameFolder = async (id: number, name: string) =>
 
 export const deleteFolder = (id: number) =>
   client.delete(`/api/v1/folders/${id}`);
+
+export const createMindMapFromPdf = async (file: File, folderId?: number): Promise<MindMap> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (folderId != null) formData.append('folderId', String(folderId));
+  const res = await client.post('/api/v1/mindmaps/from-pdf', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data.data;
+};
