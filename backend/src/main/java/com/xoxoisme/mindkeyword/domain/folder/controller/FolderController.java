@@ -1,6 +1,7 @@
 package com.xoxoisme.mindkeyword.domain.folder.controller;
 
 import com.xoxoisme.mindkeyword.domain.folder.dto.request.FolderRequest;
+import com.xoxoisme.mindkeyword.domain.folder.dto.request.MoveFolderRequest;
 import com.xoxoisme.mindkeyword.domain.folder.dto.response.FolderResponse;
 import com.xoxoisme.mindkeyword.domain.folder.service.FolderService;
 import com.xoxoisme.mindkeyword.global.common.response.ApiResponse;
@@ -31,6 +32,13 @@ public class FolderController {
     public void rename(@PathVariable Long folderId, @RequestBody @Valid FolderRequest request, Authentication authentication) {
         Long userId = (Long) authentication.getPrincipal();
         folderService.rename(userId, folderId, request);
+    }
+
+    @PatchMapping("/{folderId}/parent")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void moveToParent(@PathVariable Long folderId, @RequestBody MoveFolderRequest request, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        folderService.moveToParent(userId, folderId, request.parentId());
     }
 
     @DeleteMapping("/{folderId}")

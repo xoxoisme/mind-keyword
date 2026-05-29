@@ -64,6 +64,18 @@ public class FolderService {
         folderRepository.delete(folder);
     }
 
+    @Transactional
+    public void moveToParent(Long userId, Long folderId, Long newParentId) {
+        Folder folder = getOwnedFolder(userId, folderId);
+        if (newParentId == null) {
+            folder.updateParent(null);
+        } else {
+            Folder newParent = folderRepository.findById(newParentId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.FOLDER_NOT_FOUND));
+            folder.updateParent(newParent);
+        }
+    }
+
     public List<FolderResponse> getAll(Long userId) {
         return folderRepository.findAllByUserId(userId).stream()
                 .map(FolderResponse::from)
