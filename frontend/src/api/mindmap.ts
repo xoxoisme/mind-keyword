@@ -6,8 +6,8 @@ export const getMindMaps = async (): Promise<MindMap[]> => {
   return res.data.data;
 };
 
-export const createMindMap = async (title: string): Promise<MindMap> => {
-  const res = await client.post('/api/v1/mindmaps', { title });
+export const createMindMap = async (title: string, folderId?: number | null): Promise<MindMap> => {
+  const res = await client.post('/api/v1/mindmaps', { title, folderId: folderId ?? null });
   return res.data.data;
 };
 
@@ -63,8 +63,8 @@ export const getFolders = async (): Promise<Folder[]> => {
   return res.data.data;
 };
 
-export const createFolder = async (name: string): Promise<Folder> => {
-  const res = await client.post('/api/v1/folders', { name });
+export const createFolder = async (name: string, parentId?: number): Promise<Folder> => {
+  const res = await client.post('/api/v1/folders', { name, parentId: parentId ?? null });
   return res.data.data;
 };
 

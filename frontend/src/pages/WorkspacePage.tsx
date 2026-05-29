@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 import {
@@ -31,7 +31,6 @@ import {
   createChildNode,
   updateNode,
   deleteNode,
-  createMindMapFromPdf,
 } from '../api/mindmap';
 
 interface Props {
@@ -527,7 +526,7 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
 
 interface MindMapItemProps {
   m: MindMap;
-  indent?: boolean;
+  indentLevel?: number;
   isSelected: boolean;
   isDragging: boolean;
   isEditing: boolean;
@@ -540,17 +539,19 @@ interface MindMapItemProps {
   onCancelEdit: () => void;
   onStartEdit: () => void;
   onDelete: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }
 
-function MindMapItem({ m, indent = false, isSelected, isDragging, isEditing, editingTitle, onDragStart, onDragEnd, onClick, onTitleChange, onRename, onCancelEdit, onStartEdit, onDelete }: MindMapItemProps) {
+function MindMapItem({ m, indentLevel = 0, isSelected, isDragging, isEditing, editingTitle, onDragStart, onDragEnd, onClick, onTitleChange, onRename, onCancelEdit, onStartEdit, onDelete, onContextMenu }: MindMapItemProps) {
   return (
     <div
       draggable
       onDragStart={(e) => { e.stopPropagation(); onDragStart(); }}
       onDragEnd={onDragEnd}
+      onContextMenu={onContextMenu}
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: `8px 16px 8px ${indent ? 28 : 16}px`,
+        padding: `8px 16px 8px ${16 + indentLevel * 12}px`,
         background: isSelected ? '#f0f0f0' : 'transparent',
         borderLeft: isSelected ? '3px solid #000' : '3px solid transparent',
         opacity: isDragging ? 0.4 : 1,
@@ -582,6 +583,17 @@ function MindMapItem({ m, indent = false, isSelected, isDragging, isEditing, edi
   );
 }
 
+function CtxItem({ label, onClick, danger = false }: { label: string; onClick: () => void; danger?: boolean }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{ padding: '8px 16px', fontSize: 13, cursor: 'pointer', color: danger ? '#e53935' : '#222', userSelect: 'none' }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = danger ? '#fff5f5' : '#f5f5f5'; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+    >{label}</div>
+  );
+}
+
 export default function WorkspacePage({ onLogout }: Props) {
   const [mindMaps, setMindMaps] = useState<MindMap[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -593,8 +605,15 @@ export default function WorkspacePage({ onLogout }: Props) {
   const [editingFolderName, setEditingFolderName] = useState('');
   const [editingMindMapId, setEditingMindMapId] = useState<number | null>(null);
   const [editingMindMapTitle, setEditingMindMapTitle] = useState('');
-  const [isPdfLoading, setIsPdfLoading] = useState(false);
-  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: 'sidebar' | 'folder' | 'mindmap'; targetId?: number } | null>(null);
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [contextMenu]);
 
   const loadAll = async () => {
     const [maps, flds] = await Promise.all([getMindMaps(), getFolders()]);
@@ -604,8 +623,8 @@ export default function WorkspacePage({ onLogout }: Props) {
 
   useEffect(() => { loadAll(); }, []);
 
-  const handleCreateMindMap = async () => {
-    const created = await createMindMap('새 마인드맵');
+  const handleCreateMindMap = async (folderId?: number) => {
+    const created = await createMindMap('새 마인드맵', folderId);
     setMindMaps((prev) => [...prev, created]);
     setSelected(created);
     setEditingMindMapId(created.id);
@@ -627,9 +646,14 @@ export default function WorkspacePage({ onLogout }: Props) {
   };
 
   const handleCreateFolder = async () => {
-    const created = await createFolder('새 폴더');
+    const created = await createFolder('새 폴더', selectedFolderId ?? undefined);
     setFolders((prev) => [...prev, created]);
-    setExpandedFolders((prev) => new Set(prev).add(created.id));
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      if (selectedFolderId) next.add(selectedFolderId);
+      next.add(created.id);
+      return next;
+    });
     setEditingFolderId(created.id);
     setEditingFolderName('새 폴더');
   };
@@ -642,9 +666,11 @@ export default function WorkspacePage({ onLogout }: Props) {
   };
 
   const handleDeleteFolder = async (id: number) => {
+    if (!window.confirm('폴더와 안의 모든 하위 폴더, 마인드맵이 삭제됩니다. 계속할까요?')) return;
     await deleteFolder(id);
-    setFolders((prev) => prev.filter((f) => f.id !== id));
-    setMindMaps((prev) => prev.map((m) => m.folderId === id ? { ...m, folderId: null } : m));
+    setSelectedFolderId(null);
+    await loadAll();
+    setSelected(null);
   };
 
   const handleMove = async (mindMapId: number, folderId: number | null) => {
@@ -660,22 +686,6 @@ export default function WorkspacePage({ onLogout }: Props) {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-
-  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsPdfLoading(true);
-    try {
-      const created = await createMindMapFromPdf(file);
-      await loadAll();
-      setSelected(created);
-    } catch {
-      alert('PDF 마인드맵 생성에 실패했습니다. 백엔드 서버를 확인해주세요.');
-    } finally {
-      setIsPdfLoading(false);
-      if (pdfInputRef.current) pdfInputRef.current.value = '';
-    }
-  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -693,6 +703,94 @@ export default function WorkspacePage({ onLogout }: Props) {
   const uncategorized = mindMaps.filter((m) => m.folderId === null);
   const isDragOverRoot = dragOver === 'root';
 
+  // 평면 배열 → parentId 기준 children 맵
+  const childrenOf = new Map<number, Folder[]>();
+  folders.forEach((f) => {
+    if (f.parentId !== null) {
+      const arr = childrenOf.get(f.parentId) ?? [];
+      childrenOf.set(f.parentId, [...arr, f]);
+    }
+  });
+  const rootFolders = folders.filter((f) => f.parentId === null);
+
+  const renderFolder = (folder: Folder, depth: number): ReactNode => {
+    const subFolders = childrenOf.get(folder.id) ?? [];
+    const folderMaps = mindMaps.filter((m) => m.folderId === folder.id);
+    const isOpen = expandedFolders.has(folder.id);
+    const isOver = dragOver === folder.id;
+    const isFolderSelected = selectedFolderId === folder.id;
+    const indentPx = 16 + depth * 12;
+    return (
+      <div key={folder.id}>
+        <div
+          onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedFolderId(folder.id); setContextMenu({ x: e.clientX, y: e.clientY, type: 'folder', targetId: folder.id }); }}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(folder.id); if (!isOpen) toggleFolder(folder.id); }}
+          onDragLeave={() => setDragOver(null)}
+          onDrop={(e) => { e.preventDefault(); onDrop(folder.id); }}
+          style={{
+            display: 'flex', alignItems: 'center', padding: `8px 16px 8px ${indentPx}px`, cursor: 'pointer',
+            background: isOver ? '#f0f4ff' : isFolderSelected ? '#f0f0f0' : 'transparent',
+            borderLeft: isOver ? '3px solid #666' : isFolderSelected ? '3px solid #000' : '3px solid transparent',
+            transition: 'background 0.1s',
+          }}
+          onClick={(e) => { e.stopPropagation(); setSelectedFolderId((prev) => prev === folder.id ? null : folder.id); }}
+        >
+          <span
+            onClick={(e) => { e.stopPropagation(); toggleFolder(folder.id); }}
+            style={{ fontSize: 11, color: '#aaa', marginRight: 6, userSelect: 'none', padding: '2px 4px', borderRadius: 4, cursor: 'pointer' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#e8e8e8'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          >{isOpen ? '▼' : '▶'}</span>
+          {editingFolderId === folder.id ? (
+            <input
+              autoFocus value={editingFolderName}
+              onChange={(e) => setEditingFolderName(e.target.value)}
+              onBlur={() => handleRenameFolder(folder.id)}
+              onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') handleRenameFolder(folder.id); if (e.key === 'Escape') setEditingFolderId(null); }}
+              onClick={(e) => e.stopPropagation()}
+              style={{ flex: 1, fontSize: 13, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Paperlogy, sans-serif', fontWeight: 500 }}
+            />
+          ) : (
+            <span
+              onDoubleClick={(e) => { e.stopPropagation(); setEditingFolderId(folder.id); setEditingFolderName(folder.name); }}
+              style={{ fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}
+            >{folder.name}</span>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', fontSize: 16, padding: '0 2px', lineHeight: 1 }}
+          >×</button>
+        </div>
+        {isOpen && (
+          <>
+            {subFolders.map((child) => renderFolder(child, depth + 1))}
+            {folderMaps.map((m) => (
+              <MindMapItem
+                key={m.id} m={m} indentLevel={depth + 1}
+                isSelected={selected?.id === m.id}
+                isDragging={draggingId === m.id}
+                isEditing={editingMindMapId === m.id}
+                editingTitle={editingMindMapTitle}
+                onDragStart={() => setDraggingId(m.id)}
+                onDragEnd={() => { setDraggingId(null); setDragOver(null); }}
+                onClick={() => setSelected(m)}
+                onTitleChange={(title) => setEditingMindMapTitle(title)}
+                onRename={() => handleRenameMindMap(m.id)}
+                onCancelEdit={() => setEditingMindMapId(null)}
+                onStartEdit={() => handleStartEditMindMap(m)}
+                onDelete={() => handleDelete(m.id)}
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, type: 'mindmap', targetId: m.id }); }}
+              />
+            ))}
+            {subFolders.length === 0 && folderMaps.length === 0 && (
+              <p style={{ margin: 0, padding: `4px ${indentPx + 12}px 8px`, fontSize: 12, color: '#ccc' }}>비어 있음</p>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
   const handleStartEditMindMap = useCallback((m: MindMap) => {
     setEditingMindMapId(m.id);
     setEditingMindMapTitle(m.title);
@@ -705,96 +803,42 @@ export default function WorkspacePage({ onLogout }: Props) {
         {/* 헤더 */}
         <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid #eee' }}>
           <p style={{ margin: '0 0 12px', fontWeight: 700, fontSize: 16, letterSpacing: '-0.5px', textAlign: 'center' }}>Mind Keyword</p>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 2 }}>
+            {/* 새 마인드맵 — 파일 아이콘만 */}
             <button
-              onClick={handleCreateMindMap}
-              style={{ flex: 1, padding: '8px 0', background: '#000', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontFamily: 'Paperlogy, sans-serif' }}
-            >+ 마인드맵</button>
+              onClick={() => handleCreateMindMap()}
+              title="새 마인드맵"
+              style={{ flex: 1, height: 36, background: 'transparent', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#f0f0f0'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              <svg width="18" height="20" viewBox="0 0 16 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 2h7l3 3v13H3z"/><path d="M10 2v4h3"/>
+              </svg>
+            </button>
+            {/* 새 폴더 — 폴더 아이콘만 / 선택된 폴더 있으면 하위 폴더 생성 */}
             <button
               onClick={handleCreateFolder}
-              style={{ flex: 1, padding: '8px 0', background: '#fff', color: '#444', border: '1px solid #ddd', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontFamily: 'Paperlogy, sans-serif' }}
-            >+ 폴더</button>
+              title={selectedFolderId ? '하위 폴더 추가' : '새 폴더'}
+              style={{ flex: 1, height: 36, background: selectedFolderId ? '#e8e8e8' : 'transparent', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#f0f0f0'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = selectedFolderId ? '#e8e8e8' : 'transparent'; }}
+            >
+              <svg width="20" height="16" viewBox="0 0 20 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 4h6l2 2h8v8H2z"/>
+              </svg>
+            </button>
           </div>
-          <input
-            ref={pdfInputRef}
-            type="file"
-            accept=".pdf"
-            style={{ display: 'none' }}
-            onChange={handlePdfUpload}
-          />
-          <button
-            onClick={() => pdfInputRef.current?.click()}
-            disabled={isPdfLoading}
-            style={{ marginTop: 6, width: '100%', padding: '8px 0', background: '#fff', color: isPdfLoading ? '#bbb' : '#444', border: '1px solid #ddd', borderRadius: 8, cursor: isPdfLoading ? 'wait' : 'pointer', fontSize: 13, fontFamily: 'Paperlogy, sans-serif' }}
-          >{isPdfLoading ? 'PDF 변환 중…' : '↑ PDF로 생성'}</button>
         </div>
 
         {/* 목록 */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
-          {/* 폴더 */}
-          {folders.map((folder) => {
-            const folderMaps = mindMaps.filter((m) => m.folderId === folder.id);
-            const isOpen = expandedFolders.has(folder.id);
-            const isOver = dragOver === folder.id;
-            return (
-              <div key={folder.id}>
-                <div
-                  onDragOver={(e) => { e.preventDefault(); setDragOver(folder.id); if (!isOpen) toggleFolder(folder.id); }}
-                  onDragLeave={() => setDragOver(null)}
-                  onDrop={(e) => { e.preventDefault(); onDrop(folder.id); }}
-                  style={{
-                    display: 'flex', alignItems: 'center', padding: '8px 16px', cursor: 'pointer',
-                    background: isOver ? '#f0f4ff' : 'transparent',
-                    borderLeft: isOver ? '3px solid #666' : '3px solid transparent',
-                    transition: 'background 0.1s',
-                  }}
-                  onClick={() => toggleFolder(folder.id)}
-                >
-                  <span style={{ fontSize: 11, color: '#aaa', marginRight: 6, userSelect: 'none' }}>{isOpen ? '▼' : '▶'}</span>
-                  {editingFolderId === folder.id ? (
-                    <input
-                      autoFocus
-                      value={editingFolderName}
-                      onChange={(e) => setEditingFolderName(e.target.value)}
-                      onBlur={() => handleRenameFolder(folder.id)}
-                      onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') handleRenameFolder(folder.id); if (e.key === 'Escape') setEditingFolderId(null); }}
-                      onClick={(e) => e.stopPropagation()}
-                      style={{ flex: 1, fontSize: 13, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Paperlogy, sans-serif', fontWeight: 500 }}
-                    />
-                  ) : (
-                    <span
-                      onDoubleClick={(e) => { e.stopPropagation(); setEditingFolderId(folder.id); setEditingFolderName(folder.name); }}
-                      style={{ fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}
-                    >{folder.name}</span>
-                  )}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', fontSize: 16, padding: '0 2px', lineHeight: 1 }}
-                  >×</button>
-                </div>
-                {isOpen && folderMaps.map((m) => (
-                  <MindMapItem
-                    key={m.id} m={m} indent
-                    isSelected={selected?.id === m.id}
-                    isDragging={draggingId === m.id}
-                    isEditing={editingMindMapId === m.id}
-                    editingTitle={editingMindMapTitle}
-                    onDragStart={() => setDraggingId(m.id)}
-                    onDragEnd={() => { setDraggingId(null); setDragOver(null); }}
-                    onClick={() => setSelected(m)}
-                    onTitleChange={(title) => setEditingMindMapTitle(title)}
-                    onRename={() => handleRenameMindMap(m.id)}
-                    onCancelEdit={() => setEditingMindMapId(null)}
-                    onStartEdit={() => handleStartEditMindMap(m)}
-                    onDelete={() => handleDelete(m.id)}
-                  />
-                ))}
-                {isOpen && folderMaps.length === 0 && (
-                  <p style={{ margin: 0, padding: '4px 28px 8px', fontSize: 12, color: '#ccc' }}>비어 있음</p>
-                )}
-              </div>
-            );
-          })}
+        <div
+          style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}
+          onClick={() => setSelectedFolderId(null)}
+          onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, type: 'sidebar' }); }}
+        >
+          {/* 폴더 트리 */}
+          {rootFolders.map((folder) => renderFolder(folder, 0))}
 
           {/* 미분류 드롭존 */}
           <div
@@ -818,11 +862,9 @@ export default function WorkspacePage({ onLogout }: Props) {
                 onCancelEdit={() => setEditingMindMapId(null)}
                 onStartEdit={() => handleStartEditMindMap(m)}
                 onDelete={() => handleDelete(m.id)}
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, type: 'mindmap', targetId: m.id }); }}
               />
             ))}
-            {mindMaps.length === 0 && folders.length === 0 && (
-              <p style={{ padding: '12px 16px', color: '#bbb', fontSize: 13, margin: 0 }}>마인드맵이 없습니다</p>
-            )}
           </div>
         </div>
 
@@ -847,14 +889,53 @@ export default function WorkspacePage({ onLogout }: Props) {
         {sidebarOpen ? '‹' : '›'}
       </button>
 
+      {/* 컨텍스트 메뉴 */}
+      {contextMenu && (
+        <div
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{
+            position: 'fixed', top: Math.min(contextMenu.y, window.innerHeight - 180), left: Math.min(contextMenu.x, window.innerWidth - 180),
+            background: '#fff', border: '1px solid #e8e8e8', borderRadius: 10,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.12)', zIndex: 2000, minWidth: 160, padding: '4px 0',
+            fontFamily: 'Paperlogy, sans-serif',
+          }}
+        >
+          {contextMenu.type === 'folder' && (() => {
+            const f = folders.find((x) => x.id === contextMenu.targetId);
+            return (<>
+              <CtxItem label="새 마인드맵" onClick={() => { handleCreateMindMap(contextMenu.targetId); setContextMenu(null); }} />
+              <CtxItem label="하위 폴더 추가" onClick={() => { handleCreateFolder(); setContextMenu(null); }} />
+              <div style={{ height: 1, background: '#f0f0f0', margin: '4px 0' }} />
+              <CtxItem label="이름 변경" onClick={() => { if (f) { setEditingFolderId(f.id); setEditingFolderName(f.name); } setContextMenu(null); }} />
+              <CtxItem label="삭제" danger onClick={() => { setContextMenu(null); if (contextMenu.targetId) handleDeleteFolder(contextMenu.targetId); }} />
+            </>);
+          })()}
+          {contextMenu.type === 'mindmap' && (() => {
+            const m = mindMaps.find((x) => x.id === contextMenu.targetId);
+            return (<>
+              <CtxItem label="이름 변경" onClick={() => { if (m) handleStartEditMindMap(m); setContextMenu(null); }} />
+              <CtxItem label="삭제" danger onClick={() => { setContextMenu(null); if (contextMenu.targetId) handleDelete(contextMenu.targetId); }} />
+            </>);
+          })()}
+          {contextMenu.type === 'sidebar' && (<>
+            <CtxItem label="새 마인드맵" onClick={() => { handleCreateMindMap(); setContextMenu(null); }} />
+            <CtxItem label="새 폴더" onClick={() => { handleCreateFolder(); setContextMenu(null); }} />
+          </>)}
+        </div>
+      )}
+
       {/* 캔버스 */}
       <div style={{ flex: 1, display: 'flex', outline: 'none', position: 'relative' }}>
         {selected ? (
           <Canvas key={selected.id} mindMap={selected} />
         ) : (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: '#ccc' }}>
-            <span style={{ fontSize: 40 }}>○</span>
-            <p style={{ margin: 0, fontSize: 14 }}>왼쪽에서 마인드맵을 선택하거나 새로 만들어보세요</p>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button
+              onClick={() => handleCreateMindMap()}
+              style={{ padding: '16px 40px', background: 'transparent', color: '#000', border: '1.5px solid #000', borderRadius: 50, cursor: 'pointer', fontSize: 17, fontFamily: 'Paperlogy, sans-serif', letterSpacing: '-0.3px', transition: 'background 0.15s, color 0.15s' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#000'; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#000'; }}
+            >파일 생성하기</button>
           </div>
         )}
       </div>
