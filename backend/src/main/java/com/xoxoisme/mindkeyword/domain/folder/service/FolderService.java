@@ -4,14 +4,12 @@ import com.xoxoisme.mindkeyword.domain.folder.dto.request.FolderRequest;
 import com.xoxoisme.mindkeyword.domain.folder.dto.response.FolderResponse;
 import com.xoxoisme.mindkeyword.domain.folder.entity.Folder;
 import com.xoxoisme.mindkeyword.domain.folder.repository.FolderRepository;
-import com.xoxoisme.mindkeyword.domain.mindmap.dto.response.MindMapResponse;
-import com.xoxoisme.mindkeyword.domain.mindmap.entity.MindMap;
 import com.xoxoisme.mindkeyword.domain.mindmap.repository.MindMapRepository;
+import com.xoxoisme.mindkeyword.domain.node.repository.NodeRepository;
 import com.xoxoisme.mindkeyword.domain.user.entity.User;
 import com.xoxoisme.mindkeyword.domain.user.repository.UserRepository;
 import com.xoxoisme.mindkeyword.global.common.exception.BusinessException;
 import com.xoxoisme.mindkeyword.global.common.exception.ErrorCode;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,11 +24,19 @@ public class FolderService {
     private final FolderRepository folderRepository;
     private final UserRepository userRepository;
     private final MindMapRepository mindMapRepository;
+    private final NodeRepository nodeRepository;
 
     @Transactional
     public FolderResponse create(Long userId, FolderRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        if (request.parentId() != null) {
+            Folder parent = folderRepository.findById(request.parentId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.FOLDER_NOT_FOUND));
+            return FolderResponse.from(folderRepository.save(Folder.createSub(user, request.name(), parent)));
+        }
+
         return FolderResponse.from(folderRepository.save(Folder.create(user, request.name())));
     }
 
@@ -39,10 +45,22 @@ public class FolderService {
         getOwnedFolder(userId, folderId).rename(request.name());
     }
 
+    @Transactional
     public void delete(Long userId, Long folderId) {
         Folder folder = getOwnedFolder(userId, folderId);
-        List<MindMap> mindmapList = mindMapRepository.findAllByFolderId(folderId);
-        mindmapList.forEach(m -> m.updateFolder(null));
+        deleteRecursively(folder);
+    }
+
+    // 폴더와 하위 폴더, 마인드맵(노드 포함)을 모두 재귀적으로 삭제
+    private void deleteRecursively(Folder folder) {
+        folderRepository.findAllByParentId(folder.getId())
+                .forEach(this::deleteRecursively);
+
+        mindMapRepository.findAllByFolderId(folder.getId()).forEach(mindMap -> {
+            nodeRepository.deleteAllByMindMapId(mindMap.getId());
+            mindMapRepository.delete(mindMap);
+        });
+
         folderRepository.delete(folder);
     }
 
