@@ -13,10 +13,8 @@ import com.xoxoisme.mindkeyword.domain.user.entity.User;
 import com.xoxoisme.mindkeyword.domain.user.repository.UserRepository;
 import com.xoxoisme.mindkeyword.global.common.exception.BusinessException;
 import com.xoxoisme.mindkeyword.global.common.exception.ErrorCode;
+import com.xoxoisme.mindkeyword.global.gemini.dto.*;
 import com.xoxoisme.mindkeyword.global.openai.dto.MindMapTree;
-import com.xoxoisme.mindkeyword.global.openai.dto.Request.ChatMessage;
-import com.xoxoisme.mindkeyword.global.openai.dto.Request.ChatRequest;
-import com.xoxoisme.mindkeyword.global.openai.dto.Response.ChatResponse;
 import com.xoxoisme.mindkeyword.global.openai.dto.TreeNode;
 import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.Loader;
@@ -37,20 +35,18 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class PdfMindMapService {
 
-
     private final MindMapRepository mindMapRepository;
     private final NodeRepository nodeRepository;
     private final UserRepository userRepository;
     private final FolderRepository folderRepository;
     private final WebClient webClient;
 
-    @Value("${openai.api-key}")
-    private String openAiApiKey;
+    @Value("${gemini.api-key}")
+    private String geminiApiKey;
 
-    @Value("${openai.model}")
-    private String openAiModel;
+    @Value("${gemini.model}")
+    private String geminiModel;
 
-    // PDF에서 텍스트를 추출합니다.
     private String extractTextFromPdf(MultipartFile file) {
         try (PDDocument doc = Loader.loadPDF(file.getBytes())) {
             PDFTextStripper stripper = new PDFTextStripper();
@@ -60,30 +56,36 @@ public class PdfMindMapService {
         }
     }
 
-    // 추출된 텍스트를 OpenAI API로 전송해 계층형 마인드맵 JSON을 받습니다.
-    private MindMapTree callOpenAI(String pdfText) {
-        ChatMessage message = new ChatMessage("user", pdfText + "\n\n" +
-                "문서를 분석해 마인드맵을 JSON으로 반환하세요. " +
-                "형식: {\"title\":\"...\",\"root\":{\"content\":\"...\",\"children\":[...]}} " +
-                "title은 하나의 키워드나 짧은 문장으로 해주고, 각 노드의 content는 30자 이하, 핵심 개념 위주로 계층 구조를 만드세요. " +
-                "JSON만 반환하고 다른 텍스트는 쓰지 마세요.");
-        ChatRequest request = new ChatRequest(openAiModel, List.of(message));
+    private MindMapTree callGemini(String pdfText) {
+        String prompt = pdfText.substring(0, Math.min(pdfText.length(), 12000)) + "\n\n" +
+                "위 문서를 분석해 마인드맵을 JSON으로 반환하세요. " +
+                "반드시 아래 형식만 출력하고 다른 텍스트나 마크다운은 쓰지 마세요.\n" +
+                "{\"title\":\"...\",\"root\":{\"content\":\"...\",\"children\":[{\"content\":\"...\",\"children\":[...]}]}}\n" +
+                "title은 짧은 키워드, 각 content는 30자 이하로 핵심 개념 위주로 작성하세요.";
 
-        ChatResponse response = webClient
+        GeminiRequest request = new GeminiRequest(
+                List.of(new GeminiContent(List.of(new GeminiPart(prompt))))
+        );
+
+        String uri = "https://generativelanguage.googleapis.com/v1beta/models/"
+                + geminiModel + ":generateContent?key=" + geminiApiKey;
+
+        GeminiResponse response = webClient
                 .post()
-                .uri("https://api.openai.com/v1/chat/completions")
-                .header("Authorization", "Bearer " + openAiApiKey)
+                .uri(uri)
                 .bodyValue(request)
                 .retrieve()
                 .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
                         res -> Mono.error(new BusinessException(ErrorCode.OPENAI_API_FAILED)))
-                .bodyToMono(ChatResponse.class)
+                .bodyToMono(GeminiResponse.class)
                 .block();
 
         try {
-            String content = response.choices().get(0).message().content();
-            ObjectMapper objectMapper = new ObjectMapper();
-            return objectMapper.readValue(content, MindMapTree.class);
+            String raw = response.candidates().get(0).content().parts().get(0).text();
+            // 마크다운 코드 블록 제거
+            String json = raw.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.readValue(json, MindMapTree.class);
         } catch (JsonProcessingException e) {
             throw new BusinessException(ErrorCode.OPENAI_API_FAILED);
         }
@@ -95,7 +97,7 @@ public class PdfMindMapService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         String pdfText = extractTextFromPdf(file);
-        MindMapTree tree = callOpenAI(pdfText);
+        MindMapTree tree = callGemini(pdfText);
 
         String title = truncate(tree.title(), 30);
         if (title.isBlank()) title = "PDF 마인드맵";
@@ -117,8 +119,6 @@ public class PdfMindMapService {
         return MindMapResponse.from(mindMap);
     }
 
-    // 깊이(depth) * 250px를 X축으로, 전역 yCounter * 100px를 Y축으로 배치
-    // yCounter를 모든 재귀 호출이 공유해 노드 간 Y 겹침을 방지
     private void createChildrenRecursively(MindMap mindMap, Node parent, List<TreeNode> children, int depth, int[] yCounter) {
         if (children == null || children.isEmpty()) return;
         for (TreeNode tc : children) {
