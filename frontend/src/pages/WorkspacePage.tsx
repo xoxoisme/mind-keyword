@@ -38,6 +38,7 @@ import {
 
 interface Props {
   onLogout: () => void;
+  onHome: () => void;
 }
 
 interface FlowNodeData extends Record<string, unknown> {
@@ -626,7 +627,7 @@ function CtxItem({ label, onClick, danger = false }: { label: string; onClick: (
   );
 }
 
-export default function WorkspacePage({ onLogout }: Props) {
+export default function WorkspacePage({ onLogout, onHome }: Props) {
   const [mindMaps, setMindMaps] = useState<MindMap[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [selected, setSelected] = useState<MindMap | null>(null);
@@ -686,6 +687,7 @@ export default function WorkspacePage({ onLogout }: Props) {
   };
 
   const handleDelete = async (id: number) => {
+    if (!window.confirm('파일을 삭제하시겠어요?')) return;
     await deleteMindMap(id);
     if (selected?.id === id) setSelected(null);
     setMindMaps((prev) => prev.filter((m) => m.id !== id));
@@ -717,7 +719,7 @@ export default function WorkspacePage({ onLogout }: Props) {
   };
 
   const handleDeleteFolder = async (id: number) => {
-    if (!window.confirm('폴더와 안의 모든 하위 폴더, 마인드맵이 삭제됩니다. 계속할까요?')) return;
+    if (!window.confirm('폴더와 안의 모든 하위 폴더, 파일이 삭제됩니다. 계속할까요?')) return;
     await deleteFolder(id);
     setSelectedFolderId(null);
     await loadAll();
@@ -897,10 +899,10 @@ export default function WorkspacePage({ onLogout }: Props) {
       <div style={{ width: sidebarOpen ? 240 : 0, display: 'flex', flexDirection: 'column', borderRight: sidebarOpen ? '1px solid #eee' : 'none', background: '#fafafa', flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
         {/* 헤더 */}
         <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid #eee' }}>
-          <p style={{ margin: '0 0 12px', fontWeight: 700, fontSize: 16, letterSpacing: '-0.5px', textAlign: 'center' }}>Mind Keyword</p>
+          <p onClick={onHome} style={{ margin: '0 0 12px', fontWeight: 700, fontSize: 16, letterSpacing: '-0.5px', textAlign: 'center', cursor: 'pointer' }}>Mind Keyword</p>
           <div style={{ display: 'flex', gap: 0 }}>
             <button
-              onClick={() => handleCreateMindMap()}
+              onClick={() => handleCreateMindMap(selectedFolderId ?? undefined)}
               title="새 마인드맵"
               style={{ width: 28, height: 28, background: 'transparent', color: '#000', border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               onMouseEnter={(e) => { e.currentTarget.style.background = '#f0f0f0'; }}
@@ -1002,31 +1004,6 @@ export default function WorkspacePage({ onLogout }: Props) {
           </div>
         </div>
 
-        {/* 사용자 아이콘 */}
-        <div style={{ position: 'absolute', bottom: 16, left: 16 }}>
-          <button
-            onClick={() => setShowUserMenu((v) => !v)}
-            style={{ width: 32, height: 32, borderRadius: '50%', border: '1.5px solid #ddd', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555' }}
-          >
-            <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="10" cy="7" r="3.5"/>
-              <path d="M2 18c0-4 3.6-7 8-7s8 3 8 7"/>
-            </svg>
-          </button>
-          {showUserMenu && (
-            <div
-              onMouseLeave={() => setShowUserMenu(false)}
-              style={{ position: 'absolute', bottom: 40, left: 0, background: '#fff', border: '1px solid #e8e8e8', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', minWidth: 120, padding: '4px 0', fontFamily: 'Paperlogy, sans-serif', zIndex: 100 }}
-            >
-              <div
-                onClick={() => { setShowUserMenu(false); handleLogout(); }}
-                style={{ padding: '9px 16px', fontSize: 13, cursor: 'pointer', color: '#222' }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f5'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-              >로그아웃</div>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* 사이드바 토글 버튼 */}
@@ -1073,7 +1050,7 @@ export default function WorkspacePage({ onLogout }: Props) {
             </>);
           })()}
           {contextMenu.type === 'sidebar' && (<>
-            <CtxItem label="새 마인드맵" onClick={() => { handleCreateMindMap(); setContextMenu(null); }} />
+            <CtxItem label="새 마인드맵" onClick={() => { handleCreateMindMap(selectedFolderId ?? undefined); setContextMenu(null); }} />
             <CtxItem label="새 폴더" onClick={() => { handleCreateFolder(); setContextMenu(null); }} />
           </>)}
         </div>
@@ -1139,7 +1116,7 @@ export default function WorkspacePage({ onLogout }: Props) {
         ) : (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <button
-              onClick={() => handleCreateMindMap()}
+              onClick={() => handleCreateMindMap(selectedFolderId ?? undefined)}
               style={{ padding: '16px 40px', background: 'transparent', color: '#000', border: '1.5px solid #000', borderRadius: 50, cursor: 'pointer', fontSize: 17, fontFamily: 'Paperlogy, sans-serif', letterSpacing: '-0.3px', transition: 'background 0.15s, color 0.15s' }}
               onMouseEnter={(e) => { e.currentTarget.style.background = '#000'; e.currentTarget.style.color = '#fff'; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#000'; }}

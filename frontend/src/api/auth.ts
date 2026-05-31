@@ -7,3 +7,9 @@ export const login = async (email: string, password: string): Promise<string> =>
   const res = await client.post('/api/v1/users/login', { email, password });
   return res.data.data.accessToken;
 };
+
+export const sendVerificationCode = (email: string) =>
+  client.post('/api/v1/user/email/verify-request', { email });
+
+export const confirmVerificationCode = (email: string, code: string) =>
+  client.post('/api/v1/user/email/verify-confirm', { email, code });

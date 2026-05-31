@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { login, signup } from '../api/auth';
+import { login, signup, sendVerificationCode, confirmVerificationCode } from '../api/auth';
 
 interface Props {
   onLogin: () => void;
@@ -26,20 +26,73 @@ export default function LoginPage({ onLogin, onBack }: Props) {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  // 이메일 인증 상태
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState('');
+  const [verified, setVerified] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [confirmingCode, setConfirmingCode] = useState(false);
+
+  const resetSignupState = () => {
+    setCodeSent(false);
+    setCode('');
+    setVerified(false);
+    setSendingCode(false);
+    setConfirmingCode(false);
+  };
+
+  const handleSendCode = async () => {
+    if (!email) { setError('이메일을 입력해주세요.'); return; }
+    setError('');
+    setSendingCode(true);
+    try {
+      await sendVerificationCode(email);
+      setCodeSent(true);
+      setVerified(false);
+      setCode('');
+    } catch (e: any) {
+      const msg = e?.response?.data?.message ?? '인증 코드 전송에 실패했습니다.';
+      setError(msg);
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const handleConfirmCode = async () => {
+    if (!code) { setError('인증 코드를 입력해주세요.'); return; }
+    setError('');
+    setConfirmingCode(true);
+    try {
+      await confirmVerificationCode(email, code);
+      setVerified(true);
+    } catch (e: any) {
+      const msg = e?.response?.data?.message ?? '인증 코드가 올바르지 않습니다.';
+      setError(msg);
+    } finally {
+      setConfirmingCode(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     try {
       if (isSignup) {
         await signup(email, password, nickname);
+        resetSignupState();
         setIsSignup(false);
       } else {
         const token = await login(email, password);
         localStorage.setItem('token', token);
         onLogin();
       }
-    } catch {
-      setError(isSignup ? '회원가입에 실패했습니다.' : '이메일 또는 비밀번호를 확인해주세요.');
+    } catch (e: any) {
+      const msg = e?.response?.data?.message;
+      if (isSignup) {
+        setError(msg ?? '회원가입에 실패했습니다.');
+      } else {
+        setError('이메일 또는 비밀번호를 확인해주세요.');
+      }
     }
   };
 
@@ -73,13 +126,72 @@ export default function LoginPage({ onLogin, onBack }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <input
-            style={inputStyle}
-            placeholder="이메일"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
+          {/* 이메일 + 인증 코드 발송 버튼 */}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              style={{ ...inputStyle, flex: 1 }}
+              placeholder="이메일"
+              type="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); if (isSignup) { setCodeSent(false); setVerified(false); setCode(''); } }}
+            />
+            {isSignup && (
+              <button
+                type="button"
+                onClick={handleSendCode}
+                disabled={sendingCode || !email}
+                style={{
+                  padding: '12px 14px',
+                  background: verified ? '#e8f5e9' : '#000',
+                  color: verified ? '#388e3c' : '#fff',
+                  border: 'none',
+                  borderRadius: 12,
+                  fontSize: 13,
+                  fontFamily: 'Paperlogy, sans-serif',
+                  fontWeight: 600,
+                  cursor: sendingCode || !email ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                  opacity: sendingCode || !email ? 0.5 : 1,
+                }}
+              >
+                {verified ? '인증완료' : codeSent ? '재발송' : '코드 발송'}
+              </button>
+            )}
+          </div>
+
+          {/* 인증 코드 입력 */}
+          {isSignup && codeSent && !verified && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                style={{ ...inputStyle, flex: 1, letterSpacing: 4 }}
+                placeholder="인증 코드 6자리"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                maxLength={6}
+              />
+              <button
+                type="button"
+                onClick={handleConfirmCode}
+                disabled={confirmingCode || code.length !== 6}
+                style={{
+                  padding: '12px 14px',
+                  background: '#000',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 12,
+                  fontSize: 13,
+                  fontFamily: 'Paperlogy, sans-serif',
+                  fontWeight: 600,
+                  cursor: confirmingCode || code.length !== 6 ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                  opacity: confirmingCode || code.length !== 6 ? 0.5 : 1,
+                }}
+              >
+                인증 확인
+              </button>
+            </div>
+          )}
+
           <div style={{ position: 'relative' }}>
             <input
               style={inputStyle}
@@ -109,6 +221,7 @@ export default function LoginPage({ onLogin, onBack }: Props) {
           )}
           <button
             type="submit"
+            disabled={isSignup && !verified}
             style={{
               marginTop: 8,
               padding: '13px',
@@ -119,7 +232,8 @@ export default function LoginPage({ onLogin, onBack }: Props) {
               fontSize: 15,
               fontFamily: 'Paperlogy, sans-serif',
               fontWeight: 600,
-              cursor: 'pointer',
+              cursor: isSignup && !verified ? 'not-allowed' : 'pointer',
+              opacity: isSignup && !verified ? 0.4 : 1,
             }}
           >
             {isSignup ? '가입하기' : '로그인'}
@@ -128,7 +242,7 @@ export default function LoginPage({ onLogin, onBack }: Props) {
 
         <button
           type="button"
-          onClick={() => { setIsSignup(!isSignup); setError(''); }}
+          onClick={() => { setIsSignup(!isSignup); setError(''); resetSignupState(); }}
           style={{
             marginTop: 16,
             background: 'none',

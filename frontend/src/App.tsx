@@ -11,5 +11,5 @@ export default function App() {
     return <LandingPage onLogin={() => setPage('workspace')} />;
   }
 
-  return <WorkspacePage onLogout={() => setPage('landing')} />;
+  return <WorkspacePage onLogout={() => setPage('landing')} onHome={() => setPage('landing')} />;
 }
