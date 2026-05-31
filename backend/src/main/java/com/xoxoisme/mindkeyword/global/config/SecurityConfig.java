@@ -41,6 +41,7 @@ public class SecurityConfig {
                                 "/api/v1/users/signup",
                                 "/api/v1/users/login",
                                 "/api/v1/users/logout",
+                                "/api/v1/user/email/**",
                                 "/h2-console/**"
                         ).permitAll()
                         .anyRequest().authenticated()

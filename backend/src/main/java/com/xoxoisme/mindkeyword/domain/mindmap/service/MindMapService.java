@@ -32,9 +32,13 @@ public class MindMapService {
     public MindMapResponse create(Long userId, @Valid MindMapRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        return MindMapResponse.from(
-                mindMapRepository.save(MindMap.create(user, request.title()))
-        );
+        MindMap mindMap = MindMap.create(user, request.title());
+        if (request.folderId() != null) {
+            Folder folder = folderRepository.findById(request.folderId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.FOLDER_NOT_FOUND));
+            mindMap.updateFolder(folder);
+        }
+        return MindMapResponse.from(mindMapRepository.save(mindMap));
     }
 
     @Transactional

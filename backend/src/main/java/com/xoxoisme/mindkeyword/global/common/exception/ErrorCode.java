@@ -28,7 +28,13 @@ public enum ErrorCode {
     NODE_NOT_FOUND("N002", HttpStatus.NOT_FOUND, "존재하지 않는 노드입니다."),
 
     // Folder
-    FOLDER_NOT_FOUND("F001", HttpStatus.NOT_FOUND, "존재하지 않는 폴더입니다.");
+    FOLDER_NOT_FOUND("F001", HttpStatus.NOT_FOUND, "존재하지 않는 폴더입니다."),
+
+    // Email
+    EMAIL_SEND_FAILED("E001", HttpStatus.INTERNAL_SERVER_ERROR, "인증코드 전송에 실패했습니다."),
+    EMAIL_VERIFY_CODE_EXPIRED("E002", HttpStatus.BAD_REQUEST, "인증코드 만료시간이 지났습니다."),
+    EMAIL_VERIFY_CODE_INVALID("E003", HttpStatus.BAD_REQUEST, "인증코드가 일치하지 않습니다."),
+    EMAIL_NOT_VERIFIED("E004", HttpStatus.BAD_REQUEST, "이메일 인증이 완료되지 않았습니다.");
 
 
     private final String code;
