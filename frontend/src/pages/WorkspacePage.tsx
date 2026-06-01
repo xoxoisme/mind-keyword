@@ -81,10 +81,20 @@ function EditableNode({ id, data, selected }: NodeProps<Node<FlowNodeData>>) {
   const invisibleStyle = { width: 1, height: 1, minWidth: 0, minHeight: 0, background: 'transparent', border: 'none' };
 
   if (isRoot) {
+    const content = data.nodeData.content || '';
+    // 13px 폰트 기준 텍스트 너비 추정 → 원의 반지름 계산
+    const textWidth = content.length * 7.5;
+    const r = Math.max(ROOT_R, Math.ceil(textWidth / 2) + 20);
+    const size = r * 2;
+    const dynamicHandles = ROOT_DIRS.map((dir, i) => {
+      const angle = (i * 45 * Math.PI) / 180;
+      return { dir, left: r + r * Math.cos(angle), top: r + r * Math.sin(angle) };
+    });
+
     return (
-      <div style={{ outline: 'none', position: 'relative', width: 80, height: 80 }}>
+      <div style={{ outline: 'none', position: 'relative', width: size, height: size }}>
         {/* 8방향 source 핸들 */}
-        {ROOT_HANDLE_POSITIONS.map(({ dir, left, top }) => (
+        {dynamicHandles.map(({ dir, left, top }) => (
           <Handle
             key={`src-${dir}`}
             id={`src-${dir}`}
@@ -98,7 +108,7 @@ function EditableNode({ id, data, selected }: NodeProps<Node<FlowNodeData>>) {
         <Handle id="target-right" type="target" position={Position.Right} style={invisibleStyle} />
 
         <div style={{
-          width: 80, height: 80, borderRadius: '50%',
+          width: size, height: size, borderRadius: '50%',
           border: `1.5px solid ${selected ? '#000' : '#aaa'}`,
           background: '#fff',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -107,16 +117,16 @@ function EditableNode({ id, data, selected }: NodeProps<Node<FlowNodeData>>) {
             <input
               ref={inputRef}
               defaultValue={data.editingInitialValue !== undefined ? data.editingInitialValue : (data.nodeData.content || '')}
-              style={{ border: 'none', outline: 'none', fontSize: 13, background: 'transparent', color: '#000', fontFamily: 'Paperlogy, sans-serif', width: 60, textAlign: 'center' }}
+              style={{ border: 'none', outline: 'none', fontSize: 13, background: 'transparent', color: '#000', fontFamily: 'Paperlogy, sans-serif', width: size - 24, textAlign: 'center' }}
               onBlur={(e) => data.onSave(id, e.target.value)}
               onKeyDown={(e) => {
                 e.stopPropagation();
-                if (e.key === 'Tab') e.preventDefault(); // 브라우저 기본 Tab 포커스 이동 방지
+                if (e.key === 'Tab') e.preventDefault();
                 if (e.key === 'Enter' || e.key === 'Escape') data.onSave(id, (e.target as HTMLInputElement).value);
               }}
             />
           ) : (
-            <span style={{ fontSize: 13, color: '#000', fontFamily: 'Paperlogy, sans-serif', textAlign: 'center', wordBreak: 'break-all', padding: '0 8px' }}>
+            <span style={{ fontSize: 13, color: '#000', fontFamily: 'Paperlogy, sans-serif', textAlign: 'center', padding: `0 ${Math.max(8, r * 0.2)}px`, display: 'block', maxWidth: size - 16 }}>
               {data.nodeData.content || ''}
             </span>
           )}
@@ -163,6 +173,27 @@ function EditableNode({ id, data, selected }: NodeProps<Node<FlowNodeData>>) {
 }
 
 const nodeTypes = { editable: EditableNode };
+
+// 텍스트 길이 기반 노드 너비 추정 (14px Paperlogy 기준, padding 24px)
+function estimateNodeWidth(content: string): number {
+  if (!content) return 60;
+  return Math.max(60, content.length * 8.5 + 24);
+}
+
+// 루트 원의 반지름 추정
+function estimateRootRadius(content: string): number {
+  if (!content) return ROOT_R;
+  return Math.max(ROOT_R, Math.ceil((content.length * 7.5) / 2) + 20);
+}
+
+// 부모 텍스트 길이를 고려한 수평 간격 계산
+function calcXGap(parentContent: string, isParentRoot = false): number {
+  if (isParentRoot) {
+    const r = estimateRootRadius(parentContent);
+    return Math.max(200, r + 120);
+  }
+  return Math.max(200, estimateNodeWidth(parentContent) + 80);
+}
 
 // 부모→자식 각도로 8방향 중 가장 가까운 핸들 ID 반환
 function getClosestRootHandle(parent: NodeData, child: NodeData): string {
@@ -313,7 +344,8 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
         ? rawNodes.current.find((n) => n.id === parent.parentId)
         : null;
       const goRight = grandparent ? parent.positionX >= grandparent.positionX : true;
-      const childX = parent.positionX + (goRight ? 200 : -200);
+      const xGap = calcXGap(parent.content, parent.parentId === null);
+      const childX = parent.positionX + (goRight ? xGap : -xGap);
       // 부모 노드 기준 같은 Y에 배치
       const childY = parent.positionY;
       const created = await createChildNode(mindMap.id, Number(selId), '', childX, childY);
@@ -340,7 +372,7 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
       // 루트 노드면 자식 생성, 자식 노드면 형제 생성
       const isRoot = cur.parentId === null;
       const parentId = cur.parentId ?? cur.id;
-      const newX = cur.positionX + (isRoot ? 200 : 0);
+      const newX = cur.positionX + (isRoot ? calcXGap(cur.content, true) : 0);
       // 선택된 노드 기준 바로 아래에 배치
       const newY = cur.positionY + (isRoot ? 0 : 80);
       const created = await createChildNode(mindMap.id, parentId, '', newX, newY);

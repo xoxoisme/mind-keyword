@@ -255,6 +255,38 @@ export default function LoginPage({ onLogin, onBack }: Props) {
         >
           {isSignup ? '이미 계정이 있으신가요? 로그인' : '계정이 없으신가요? 회원가입'}
         </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 24 }}>
+          <div style={{ flex: 1, height: 1, background: '#eee' }} />
+          <span style={{ fontSize: 12, color: '#ccc', fontFamily: 'Paperlogy, sans-serif' }}>또는</span>
+          <div style={{ flex: 1, height: 1, background: '#eee' }} />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => { window.location.href = 'http://localhost:8080/oauth2/authorization/naver'; }}
+          style={{
+            marginTop: 16,
+            padding: '13px',
+            background: '#03C75A',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 12,
+            fontSize: 15,
+            fontFamily: 'Paperlogy, sans-serif',
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+            <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/>
+          </svg>
+          네이버로 로그인
+        </button>
       </div>
     </div>
   );

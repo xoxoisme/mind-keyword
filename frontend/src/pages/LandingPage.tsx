@@ -39,35 +39,52 @@ export default function LandingPage({ onLogin }: Props) {
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* 프로필 아이콘 - 우상단 */}
+      {/* 우상단 - 로그인 상태에 따라 다르게 표시 */}
       <div style={{ position: 'absolute', top: 24, right: 32 }}>
-        <button
-          onClick={() => isLoggedIn ? setShowUserMenu((v) => !v) : setShowLogin(true)}
-          style={{
-            width: 36, height: 36, borderRadius: '50%',
-            border: '1.5px solid #ddd', background: '#fff',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#000'; e.currentTarget.style.color = '#000'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#ddd'; e.currentTarget.style.color = '#555'; }}
-        >
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="10" cy="7" r="3.5"/>
-            <path d="M2 18c0-4 3.6-7 8-7s8 3 8 7"/>
-          </svg>
-        </button>
-        {showUserMenu && (
-          <div
-            onMouseLeave={() => setShowUserMenu(false)}
-            style={{ position: 'absolute', top: 44, right: 0, background: '#fff', border: '1px solid #e8e8e8', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', minWidth: 120, padding: '4px 0', fontFamily: 'Paperlogy, sans-serif', zIndex: 100 }}
-          >
-            <div
-              onClick={handleLogout}
-              style={{ padding: '9px 16px', fontSize: 13, cursor: 'pointer', color: '#e53935', textAlign: 'center' }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#fff5f5'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-            >로그아웃</div>
-          </div>
+        {isLoggedIn ? (
+          <>
+            <button
+              onClick={() => setShowUserMenu((v) => !v)}
+              style={{
+                width: 36, height: 36, borderRadius: '50%',
+                border: '1.5px solid #ddd', background: '#fff',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#000'; e.currentTarget.style.color = '#000'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#ddd'; e.currentTarget.style.color = '#555'; }}
+            >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="10" cy="7" r="3.5"/>
+                <path d="M2 18c0-4 3.6-7 8-7s8 3 8 7"/>
+              </svg>
+            </button>
+            {showUserMenu && (
+              <div
+                onMouseLeave={() => setShowUserMenu(false)}
+                style={{ position: 'absolute', top: 44, right: 0, background: '#fff', border: '1px solid #e8e8e8', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', minWidth: 120, padding: '4px 0', fontFamily: 'Paperlogy, sans-serif', zIndex: 100 }}
+              >
+                <div
+                  onClick={handleLogout}
+                  style={{ padding: '9px 16px', fontSize: 13, cursor: 'pointer', color: '#e53935', textAlign: 'center' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = '#fff5f5'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                >로그아웃</div>
+              </div>
+            )}
+          </>
+        ) : (
+          <button
+            onClick={() => setShowLogin(true)}
+            style={{
+              border: '1.5px solid #ddd', borderRadius: 20,
+              background: '#fff', cursor: 'pointer',
+              padding: '7px 16px', fontSize: 13, color: '#555',
+              fontFamily: 'Paperlogy, sans-serif',
+              transition: 'border-color 0.2s, color 0.2s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#000'; e.currentTarget.style.color = '#000'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#ddd'; e.currentTarget.style.color = '#555'; }}
+          >로그인</button>
         )}
       </div>
 
