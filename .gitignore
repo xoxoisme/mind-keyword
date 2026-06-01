@@ -41,6 +41,9 @@ out/
 *.yml
 application.properties
 
+### Study ###
+study/
+
 ### Frontend ###
 frontend/node_modules/
 frontend/dist/

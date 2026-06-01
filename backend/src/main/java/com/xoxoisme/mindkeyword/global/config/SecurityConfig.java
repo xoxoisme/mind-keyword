@@ -1,5 +1,6 @@
 package com.xoxoisme.mindkeyword.global.config;
 
+import com.xoxoisme.mindkeyword.domain.user.service.CustomOAuth2UserService;
 import com.xoxoisme.mindkeyword.global.jwt.JwtAuthentificationFilter;
 import com.xoxoisme.mindkeyword.global.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,8 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -35,16 +38,22 @@ public class SecurityConfig {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/v1/users/signup",
                                 "/api/v1/users/login",
                                 "/api/v1/users/logout",
                                 "/api/v1/user/email/**",
+                                "/oauth2/**",
+                                "/login/oauth2/**",
                                 "/h2-console/**"
                         ).permitAll()
                         .anyRequest().authenticated()
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(e -> e.userService(customOAuth2UserService))
+                        .successHandler(oAuth2SuccessHandler)
                 )
                 .headers(headers -> headers.frameOptions(frame -> frame.disable()))
                 .addFilterBefore(new JwtAuthentificationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
