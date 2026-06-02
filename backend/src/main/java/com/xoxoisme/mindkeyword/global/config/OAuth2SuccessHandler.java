@@ -18,6 +18,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private static final String FRONTEND_URL = "http://localhost:5173";
     private final JwtTokenProvider jwtTokenProvider;
 
+
+    // TODO: 배포 시에 URL에 토큰 붙이는 거 위험하기에 수정해야 한다.
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException {

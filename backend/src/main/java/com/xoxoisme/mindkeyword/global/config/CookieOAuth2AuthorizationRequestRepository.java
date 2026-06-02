@@ -31,8 +31,8 @@ public class CookieOAuth2AuthorizationRequestRepository
         }
         String value = serialize(authorizationRequest);
         Cookie cookie = new Cookie(COOKIE_NAME, value);
-        cookie.setPath("/");
-        cookie.setHttpOnly(true);
+        cookie.setPath("/");    // 어떤 경로든 쿠키 자동 전송된다.
+        cookie.setHttpOnly(true);   // JS가 쿠키를 못 읽게 막는다.(XSS 방지)
         cookie.setMaxAge(COOKIE_MAX_AGE);
         response.addCookie(cookie);
     }
