@@ -31,9 +31,6 @@ public class UserService {
         if (userRepository.existsByEmail(request.email())) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
-        if (userRepository.existsByNickname(request.nickname())) {
-            throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
-        }
         User user = User.create(
                 request.email(),
                 passwordEncoder.encode(request.password()),
