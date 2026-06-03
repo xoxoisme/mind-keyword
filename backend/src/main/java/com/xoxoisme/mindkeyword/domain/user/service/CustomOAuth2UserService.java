@@ -28,7 +28,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         // Naver 응답: { "resultcode": "00", "message": "success", "response": { "id": "...", "email": "...", "name": "..." } }
         Map<String, Object> response = oAuth2User.getAttribute("response");
-        if (response == null) throw new OAuth2AuthenticationException("Naver response is null");
+        if (response == null) throw new OAuth2AuthenticationException("OAuthAPI response is null");
         String providerId = (String) response.get("id");
         String email     = (String) response.get("email");
         String name      = (String) response.get("name");
