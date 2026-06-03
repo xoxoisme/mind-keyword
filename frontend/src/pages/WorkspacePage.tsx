@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
+import { FilePlus, FolderPlus } from 'lucide-react';
 import {
   ReactFlow,
   addEdge,
@@ -932,34 +933,24 @@ export default function WorkspacePage({ onLogout, onHome }: Props) {
         {/* 헤더 */}
         <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid #eee' }}>
           <p onClick={onHome} style={{ margin: '0 0 12px', fontWeight: 700, fontSize: 16, letterSpacing: '-0.5px', textAlign: 'center', cursor: 'pointer' }}>Mind Keyword</p>
-          <div style={{ display: 'flex', gap: 0 }}>
+          <div style={{ display: 'flex', gap: 6 }}>
             <button
               onClick={() => handleCreateMindMap(selectedFolderId ?? undefined)}
               title="새 마인드맵"
-              style={{ width: 28, height: 28, background: 'transparent', color: '#000', border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#f0f0f0'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              style={{ width: 30, height: 30, background: 'transparent', color: '#000', border: '1.5px solid #ddd', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#f0f0f0'; e.currentTarget.style.borderColor = '#aaa'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#ddd'; }}
             >
-              <div style={{ position: 'relative', display: 'inline-flex' }}>
-                <svg width="13" height="15" viewBox="0 0 16 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 2h7l3 3v13H3z"/><path d="M10 2v4h3"/>
-                </svg>
-                <span style={{ position: 'absolute', top: -3, right: -5, fontSize: 9, fontWeight: 700, lineHeight: 1 }}>+</span>
-              </div>
+              <FilePlus size={15} strokeWidth={1.8} />
             </button>
             <button
               onClick={handleCreateFolder}
               title={selectedFolderId ? '하위 폴더 추가' : '새 폴더'}
-              style={{ width: 28, height: 28, background: 'transparent', color: '#000', border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#f0f0f0'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              style={{ width: 30, height: 30, background: 'transparent', color: '#000', border: '1.5px solid #ddd', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#f0f0f0'; e.currentTarget.style.borderColor = '#aaa'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#ddd'; }}
             >
-              <div style={{ position: 'relative', display: 'inline-flex' }}>
-                <svg width="15" height="12" viewBox="0 0 20 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 4h6l2 2h8v8H2z"/>
-                </svg>
-                <span style={{ position: 'absolute', top: -3, right: -5, fontSize: 9, fontWeight: 700, lineHeight: 1 }}>+</span>
-              </div>
+              <FolderPlus size={15} strokeWidth={1.8} />
             </button>
             {/* PDF AI 변환 — 오른쪽 끝 */}
             <style>{`
