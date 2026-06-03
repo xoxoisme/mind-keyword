@@ -10,7 +10,6 @@ public class OAuth2UserInfoFactory {
         return switch (registrationId) {
             case "naver"  -> new NaverOAuth2UserInfo(attributes);
             case "google" -> new GoogleOAuth2UserInfo(attributes);
-            case "kakao"  -> new KakaoOAuth2UserInfo(attributes);
             default -> throw new OAuth2AuthenticationException("지원하지 않는 OAuth2 프로바이더: " + registrationId);
         };
     }
