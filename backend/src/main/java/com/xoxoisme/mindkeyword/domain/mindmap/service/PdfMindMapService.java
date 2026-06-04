@@ -103,6 +103,9 @@ public class PdfMindMapService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         String pdfText = extractTextFromPdf(file);
+        if (pdfText.isBlank() || pdfText.length() < 50) {
+            throw new BusinessException(ErrorCode.PDF_TEXT_EMPTY);
+        }
         MindMapTree tree = callGemini(pdfText);
 
         String title = truncate(tree.title(), 30);

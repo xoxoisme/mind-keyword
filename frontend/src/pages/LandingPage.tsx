@@ -9,7 +9,6 @@ export default function LandingPage({ onLogin }: Props) {
   const [showLogin, setShowLogin] = useState(false);
   const [visible, setVisible] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showPatchNote, setShowPatchNote] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
 
   useEffect(() => {
@@ -85,56 +84,6 @@ export default function LandingPage({ onLogin }: Props) {
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#000'; e.currentTarget.style.color = '#000'; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#ddd'; e.currentTarget.style.color = '#555'; }}
           >로그인</button>
-        )}
-      </div>
-
-      {/* 왼쪽 패치노트 */}
-      <div style={{
-        position: 'absolute',
-        left: 40,
-        bottom: 40,
-        fontFamily: 'Paperlogy, sans-serif',
-        opacity: visible ? 1 : 0,
-        transition: 'opacity 1.2s ease 0.8s',
-      }}>
-        <button
-          onClick={() => setShowPatchNote((v) => !v)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            background: 'none', border: '1px solid #e0e0e0', borderRadius: 20,
-            padding: '6px 14px', cursor: 'pointer', color: '#888',
-            fontSize: 12, fontFamily: 'Paperlogy, sans-serif',
-            transition: 'border-color 0.2s, color 0.2s',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#000'; e.currentTarget.style.color = '#000'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e0e0e0'; e.currentTarget.style.color = '#888'; }}
-        >
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5 }}>PATCH NOTE</span>
-          <span style={{ fontSize: 10, background: '#000', color: '#fff', borderRadius: 3, padding: '1px 6px', fontWeight: 600 }}>v0.1.0</span>
-        </button>
-
-        {showPatchNote && (
-          <div style={{
-            position: 'absolute', bottom: 40, left: 0,
-            background: '#fff', border: '1px solid #e8e8e8',
-            borderRadius: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
-            padding: '18px 20px', width: 220,
-          }}>
-            <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#aaa' }}>v0.1.0 — 현재 기능</p>
-            <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 9 }}>
-              {[
-                '폴더로 파일 분류',
-                '키워드 마인드맵 작성',
-                '키보드 단축키 지원',
-                'AI PDF → 마인드맵 변환',
-              ].map((text) => (
-                <li key={text} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#bbb', flexShrink: 0 }} />
-                  <span style={{ fontSize: 12, color: '#555', lineHeight: 1.4 }}>{text}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
         )}
       </div>
 

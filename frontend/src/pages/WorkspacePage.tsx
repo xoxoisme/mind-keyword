@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
-import { FilePlus, FolderPlus } from 'lucide-react';
+import { FilePlus, FolderPlus, Settings, Home, Download } from 'lucide-react';
 import {
   ReactFlow,
   addEdge,
@@ -447,7 +447,6 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
 
   const [showHelp, setShowHelp] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rfInstance = useRef<any>(null);
 
@@ -497,41 +496,29 @@ function Canvas({ mindMap }: { mindMap: MindMap }) {
         <strong style={{ fontSize: 18, fontFamily: 'Paperlogy, sans-serif', color: '#000' }}>{mindMap.title}</strong>
       </div>
 
-      {/* 설정 버튼 */}
-      <div style={{ position: 'absolute', top: 16, right: 20, zIndex: 5 }}>
+      {/* 상단 오른쪽 아이콘 버튼들 */}
+      <div style={{ position: 'absolute', top: 16, right: 20, zIndex: 5, display: 'flex', gap: 6 }}>
         <button
           tabIndex={-1}
-          onClick={() => setShowSettings((v) => !v)}
-          style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: '#000', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}
+          onClick={handleExportPdf}
+          title="PDF 저장"
+          disabled={isExporting}
+          style={{ width: 30, height: 30, borderRadius: 8, border: '1.5px solid #ddd', background: '#fff', cursor: isExporting ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555', opacity: isExporting ? 0.5 : 1 }}
+          onMouseEnter={(e) => { if (!isExporting) { e.currentTarget.style.background = '#f0f0f0'; e.currentTarget.style.borderColor = '#aaa'; } }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#ddd'; }}
         >
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="10" cy="10" r="3"/>
-            <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4"/>
-          </svg>
+          <Download size={15} strokeWidth={1.8} />
         </button>
-        {showSettings && (
-          <div
-            onMouseLeave={() => setShowSettings(false)}
-            style={{ position: 'absolute', top: 34, right: 0, background: '#fff', border: '1px solid #e8e8e8', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', minWidth: 140, padding: '4px 0', fontFamily: 'Paperlogy, sans-serif' }}
-          >
-            <div
-              onClick={() => { setShowSettings(false); handleExportPdf(); }}
-              style={{ padding: '9px 16px', fontSize: 13, cursor: isExporting ? 'wait' : 'pointer', color: '#222', display: 'flex', alignItems: 'center', gap: 8 }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f5'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-            >
-              <span>↓</span> PDF 저장
-            </div>
-            <div
-              onClick={() => { setShowSettings(false); setShowHelp(true); }}
-              style={{ padding: '9px 16px', fontSize: 13, cursor: 'pointer', color: '#222', display: 'flex', alignItems: 'center', gap: 8 }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f5'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-            >
-              <span>?</span> 단축키 보기
-            </div>
-          </div>
-        )}
+        <button
+          tabIndex={-1}
+          onClick={() => setShowHelp(true)}
+          title="단축키 보기"
+          style={{ width: 30, height: 30, borderRadius: 8, border: '1.5px solid #ddd', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555', fontSize: 14, fontWeight: 700, fontFamily: 'Paperlogy, sans-serif' }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = '#f0f0f0'; e.currentTarget.style.borderColor = '#aaa'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#ddd'; }}
+        >
+          ?
+        </button>
       </div>
 
       {/* 빈 캔버스 힌트 */}
@@ -677,6 +664,7 @@ export default function WorkspacePage({ onLogout, onHome }: Props) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
+  const [selectedPdfFile, setSelectedPdfFile] = useState<File | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const modalPdfInputRef = useRef<HTMLInputElement>(null);
@@ -773,14 +761,21 @@ export default function WorkspacePage({ onLogout, onHome }: Props) {
       return next;
     });
 
-  const handlePdfUpload = async (file: File) => {
+  const handlePdfSelect = (file: File) => {
+    setPdfError(null);
+    setSelectedPdfFile(file);
+  };
+
+  const handlePdfUpload = async () => {
+    if (!selectedPdfFile) return;
     setPdfError(null);
     setIsPdfLoading(true);
     try {
-      const created = await createMindMapFromPdf(file);
+      const created = await createMindMapFromPdf(selectedPdfFile);
       await loadAll();
       setSelected(created);
       setShowPdfModal(false);
+      setSelectedPdfFile(null);
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? err?.message ?? String(err);
       setPdfError(`변환 실패: ${msg}`);
@@ -932,7 +927,6 @@ export default function WorkspacePage({ onLogout, onHome }: Props) {
       <div style={{ width: sidebarOpen ? 240 : 0, display: 'flex', flexDirection: 'column', borderRight: sidebarOpen ? '1px solid #eee' : 'none', background: '#fafafa', flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
         {/* 헤더 */}
         <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid #eee' }}>
-          <p onClick={onHome} style={{ margin: '0 0 12px', fontWeight: 700, fontSize: 16, letterSpacing: '-0.5px', textAlign: 'center', cursor: 'pointer' }}>Mind Keyword</p>
           <div style={{ display: 'flex', gap: 6 }}>
             <button
               onClick={() => handleCreateMindMap(selectedFolderId ?? undefined)}
@@ -1027,6 +1021,26 @@ export default function WorkspacePage({ onLogout, onHome }: Props) {
           </div>
         </div>
 
+        {/* 하단 버튼들 */}
+        <div style={{ padding: '12px 16px', borderTop: '1px solid #eee', display: 'flex', gap: 6 }}>
+          <button
+            onClick={onHome}
+            title="홈으로"
+            style={{ width: 30, height: 30, background: 'transparent', color: '#000', border: '1.5px solid #ddd', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#f0f0f0'; e.currentTarget.style.borderColor = '#aaa'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#ddd'; }}
+          >
+            <Home size={15} strokeWidth={1.8} />
+          </button>
+          <button
+            title="설정"
+            style={{ width: 30, height: 30, background: 'transparent', color: '#000', border: '1.5px solid #ddd', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#f0f0f0'; e.currentTarget.style.borderColor = '#aaa'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#ddd'; }}
+          >
+            <Settings size={15} strokeWidth={1.8} />
+          </button>
+        </div>
       </div>
 
       {/* 사이드바 토글 버튼 */}
@@ -1082,11 +1096,17 @@ export default function WorkspacePage({ onLogout, onHome }: Props) {
       {/* PDF AI 변환 모달 */}
       {showPdfModal && (
         <div
-          onClick={() => { if (!isPdfLoading) { setShowPdfModal(false); setPdfError(null); } }}
+          onClick={() => { if (!isPdfLoading) { setShowPdfModal(false); setPdfError(null); setSelectedPdfFile(null); } }}
           style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, padding: '32px 36px 28px', width: 480, boxShadow: '0 12px 40px rgba(0,0,0,0.15)', fontFamily: 'Paperlogy, sans-serif' }}>
-            <h3 style={{ margin: '0 0 8px', fontSize: 17, fontWeight: 700, color: '#111' }}>PDF로 마인드맵 생성</h3>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, padding: '32px 36px 28px', width: 480, boxShadow: '0 12px 40px rgba(0,0,0,0.15)', fontFamily: 'Paperlogy, sans-serif', position: 'relative' }}>
+            <button
+              onClick={() => { if (!isPdfLoading) { setShowPdfModal(false); setPdfError(null); setSelectedPdfFile(null); } }}
+              disabled={isPdfLoading}
+              style={{ position: 'absolute', top: 16, right: 16, width: 28, height: 28, border: 'none', borderRadius: '50%', background: 'none', cursor: isPdfLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 18, lineHeight: 1 }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#f0f0f0'; e.currentTarget.style.color = '#000'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#aaa'; }}
+            >✕</button>
             <p style={{ margin: '0 0 20px', fontSize: 13, color: '#888', lineHeight: 1.6 }}>
               PDF 파일을 AI가 분석해 마인드맵을 자동으로 만들어 드립니다.<br/>텍스트 기반 PDF만 지원합니다.
             </p>
@@ -1094,40 +1114,63 @@ export default function WorkspacePage({ onLogout, onHome }: Props) {
               ref={modalPdfInputRef}
               type="file" accept=".pdf"
               style={{ display: 'none' }}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePdfUpload(f); }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePdfSelect(f); }}
             />
             <div
-              onClick={() => { if (!isPdfLoading) modalPdfInputRef.current?.click(); }}
-              onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+              onClick={() => { if (!isPdfLoading && !selectedPdfFile) modalPdfInputRef.current?.click(); }}
+              onDragOver={(e) => { e.preventDefault(); if (!selectedPdfFile) setIsDragOver(true); }}
               onDragLeave={() => setIsDragOver(false)}
-              onDrop={(e) => { e.preventDefault(); setIsDragOver(false); const f = e.dataTransfer.files?.[0]; if (f && !isPdfLoading) handlePdfUpload(f); }}
+              onDrop={(e) => { e.preventDefault(); setIsDragOver(false); const f = e.dataTransfer.files?.[0]; if (f && !isPdfLoading && !selectedPdfFile) handlePdfSelect(f); }}
               style={{
-                border: `2px dashed ${isDragOver ? '#000' : '#ddd'}`,
+                border: `2px dashed ${isDragOver ? '#000' : selectedPdfFile ? '#aaa' : '#ddd'}`,
                 borderRadius: 12, padding: '32px 20px',
-                textAlign: 'center', cursor: isPdfLoading ? 'wait' : 'pointer',
+                textAlign: 'center', cursor: isPdfLoading || selectedPdfFile ? 'default' : 'pointer',
                 background: isDragOver ? '#f8f8f8' : '#fafafa',
                 transition: 'all 0.15s', marginBottom: 12,
               }}
             >
               {isPdfLoading ? (
-                <div>
-                  <div style={{ fontSize: 28, marginBottom: 8 }}>⏳</div>
-                  <p style={{ margin: 0, fontSize: 13, color: '#888' }}>AI가 분석 중입니다…</p>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                  </svg>
+                  <p style={{ margin: 0, fontSize: 13, color: '#999' }}>AI가 분석 중입니다…</p>
+                </div>
+              ) : selectedPdfFile ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 52, height: 52, borderRadius: 14, background: '#efefef', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 13, color: '#333', fontWeight: 600, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedPdfFile.name}</p>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setSelectedPdfFile(null); if (modalPdfInputRef.current) modalPdfInputRef.current.value = ''; }}
+                    style={{ fontSize: 12, color: '#aaa', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  >다른 파일 선택</button>
                 </div>
               ) : (
-                <div>
-                  <div style={{ fontSize: 28, marginBottom: 8 }}>📄</div>
-                  <p style={{ margin: '0 0 4px', fontSize: 14, color: '#333', fontWeight: 600 }}>클릭하거나 파일을 끌어다 놓으세요</p>
-                  <p style={{ margin: 0, fontSize: 12, color: '#aaa' }}>PDF 파일 (.pdf)</p>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 52, height: 52, borderRadius: 14, background: isDragOver ? '#e8e8e8' : '#efefef', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}>
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={isDragOver ? '#000' : '#888'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <line x1="12" y1="18" x2="12" y2="12"/>
+                      <line x1="9" y1="15" x2="15" y2="15"/>
+                    </svg>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 14, color: '#222', fontWeight: 600 }}>클릭하거나 파일을 끌어다 놓으세요</p>
                 </div>
               )}
             </div>
             {pdfError && <p style={{ margin: '0 0 12px', fontSize: 12, color: '#e53935' }}>{pdfError}</p>}
-            <button
-              onClick={() => { if (!isPdfLoading) { setShowPdfModal(false); setPdfError(null); } }}
-              disabled={isPdfLoading}
-              style={{ width: '100%', padding: '11px', border: 'none', borderRadius: 10, background: '#000', color: '#fff', cursor: isPdfLoading ? 'not-allowed' : 'pointer', fontSize: 14, fontFamily: 'Paperlogy, sans-serif' }}
-            >닫기</button>
+            {selectedPdfFile && !isPdfLoading && (
+              <button
+                onClick={handlePdfUpload}
+                style={{ width: '100%', padding: '11px', border: 'none', borderRadius: 10, background: '#000', color: '#fff', cursor: 'pointer', fontSize: 14, fontFamily: 'Paperlogy, sans-serif', fontWeight: 600 }}
+              >AI 변환</button>
+            )}
           </div>
         </div>
       )}

@@ -22,6 +22,7 @@ public enum ErrorCode {
     // MindMap(PDF)
     PDF_EXTRACT_FAILED("MP001", HttpStatus.INTERNAL_SERVER_ERROR, "PDF 텍스트 추출에 실패했습니다."),
     OPENAI_API_FAILED("MP002", HttpStatus.INTERNAL_SERVER_ERROR, "OpenAI 호출에 실패했습니다."),
+    PDF_TEXT_EMPTY("MP003", HttpStatus.BAD_REQUEST, "PDF에서 텍스트를 추출할 수 없습니다. 스캔 이미지 PDF가 아닌 텍스트 기반 PDF를 사용해주세요."),
     // Node
     PARENT_NODE_NOT_FOUND("N001", HttpStatus.NOT_FOUND, "상위 노드가 존재하지 않습니다."),
     NODE_NOT_FOUND("N002", HttpStatus.NOT_FOUND, "존재하지 않는 노드입니다."),
