@@ -71,6 +71,6 @@ public class UserService {
 
     public void logout(String refreshToken) {
         Long userId = jwtTokenProvider.getUserId(refreshToken);
-        refreshTokenRepository.deletedByUserId(userId);
+        refreshTokenRepository.deleteByUserId(userId);
     }
 }
