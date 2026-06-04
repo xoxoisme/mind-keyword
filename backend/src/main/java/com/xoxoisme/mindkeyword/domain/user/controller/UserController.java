@@ -29,9 +29,14 @@ public class UserController {
         return ApiResponse.ok(userService.login(request));
     }
 
-    // TODO: 이후 배포 시, Redis 블랙리스트로 acessToken 탈취 위험 예방
+    @PostMapping("/refresh")
+    public ApiResponse<TokenResponse> refresh(@RequestHeader("Authorization") String refreshToken) {
+        return ApiResponse.ok(userService.refresh(refreshToken));
+    }
+
     @PostMapping("/logout")
-    public ApiResponse<Void> ok() {
-        return ApiResponse.ok();
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void ok(@RequestHeader("Authorization") String refreshToken) {
+        userService.logout(refreshToken);
     }
 }

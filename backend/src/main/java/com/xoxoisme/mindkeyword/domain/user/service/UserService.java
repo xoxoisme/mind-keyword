@@ -3,7 +3,9 @@ package com.xoxoisme.mindkeyword.domain.user.service;
 import com.xoxoisme.mindkeyword.domain.user.dto.request.LoginRequest;
 import com.xoxoisme.mindkeyword.domain.user.dto.request.SignupRequest;
 import com.xoxoisme.mindkeyword.domain.user.dto.response.TokenResponse;
+import com.xoxoisme.mindkeyword.domain.user.entity.RefreshToken;
 import com.xoxoisme.mindkeyword.domain.user.entity.User;
+import com.xoxoisme.mindkeyword.domain.user.repository.RefreshTokenRepository;
 import com.xoxoisme.mindkeyword.domain.user.repository.UserRepository;
 import com.xoxoisme.mindkeyword.global.common.exception.BusinessException;
 import com.xoxoisme.mindkeyword.global.common.exception.ErrorCode;
@@ -23,6 +25,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final EmailVerificationService emailVerificationService;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     public void signup(SignupRequest request) {
         if (!emailVerificationService.isVerified(request.email())) {
@@ -46,6 +49,28 @@ public class UserService {
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
-        return new TokenResponse(jwtTokenProvider.generateAccessToken(user.getId()));
+        return new TokenResponse(jwtTokenProvider.generateAccessToken(user.getId()), jwtTokenProvider.generateRefreshToken(user.getId()));
+    }
+
+    public TokenResponse refresh(String refreshToken) {
+        if (!jwtTokenProvider.validate(refreshToken)) {
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
+        }
+
+        Long userId = jwtTokenProvider.getUserId(refreshToken);
+        RefreshToken saved = refreshTokenRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TOKEN_NOT_FOUND));
+
+        if (!saved.getToken().equals(refreshToken)){
+            throw new BusinessException(ErrorCode.TOKEN_NOT_SAME);
+        }
+
+        String newAccessToken = jwtTokenProvider.generateAccessToken(userId);
+        return new TokenResponse(newAccessToken, refreshToken);
+    }
+
+    public void logout(String refreshToken) {
+        Long userId = jwtTokenProvider.getUserId(refreshToken);
+        refreshTokenRepository.deletedByUserId(userId);
     }
 }

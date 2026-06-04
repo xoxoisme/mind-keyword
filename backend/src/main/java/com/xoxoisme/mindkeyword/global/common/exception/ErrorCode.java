@@ -15,6 +15,9 @@ public enum ErrorCode {
     // User
     EMAIL_ALREADY_EXISTS("U001", HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
     USER_NOT_FOUND("U002", HttpStatus.NOT_FOUND , "존재하지 않는 사용자입니다."),
+    INVALID_TOKEN("U003", HttpStatus.BAD_REQUEST, "유효하지 않은 토큰입니다."),
+    TOKEN_NOT_FOUND("U004", HttpStatus.NOT_FOUND, "토큰이 존재하지 않습니다."),
+    TOKEN_NOT_SAME("U005", HttpStatus.BAD_REQUEST, "토큰이 일치하지 않습니다."),
 
     // MindMap
     MIND_MAP_NOT_FOUND("M001", HttpStatus.NOT_FOUND , "존재하지 않는 마인드맵입니다."),
@@ -30,11 +33,13 @@ public enum ErrorCode {
     // Folder
     FOLDER_NOT_FOUND("F001", HttpStatus.NOT_FOUND, "존재하지 않는 폴더입니다."),
 
-    // Email
+    // Email,
     EMAIL_SEND_FAILED("E001", HttpStatus.INTERNAL_SERVER_ERROR, "인증코드 전송에 실패했습니다."),
     EMAIL_VERIFY_CODE_EXPIRED("E002", HttpStatus.BAD_REQUEST, "인증코드 만료시간이 지났습니다."),
     EMAIL_VERIFY_CODE_INVALID("E003", HttpStatus.BAD_REQUEST, "인증코드가 일치하지 않습니다."),
     EMAIL_NOT_VERIFIED("E004", HttpStatus.BAD_REQUEST, "이메일 인증이 완료되지 않았습니다.");
+
+
 
 
     private final String code;
