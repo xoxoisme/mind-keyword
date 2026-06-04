@@ -44,6 +44,7 @@ public class SecurityConfig {
                                 "/api/v1/users/signup",
                                 "/api/v1/users/login",
                                 "/api/v1/users/logout",
+                                "/api/v1/users/refresh",
                                 "/api/v1/user/email/**",
                                 "/oauth2/**",
                                 "/login/oauth2/**",

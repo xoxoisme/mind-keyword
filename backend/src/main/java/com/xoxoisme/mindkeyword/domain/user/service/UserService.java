@@ -16,6 +16,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -43,13 +45,22 @@ public class UserService {
         emailVerificationService.consumeVerified(request.email());
     }
 
+    @Transactional
     public TokenResponse login(@Valid LoginRequest request) {
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
-        return new TokenResponse(jwtTokenProvider.generateAccessToken(user.getId()), jwtTokenProvider.generateRefreshToken(user.getId()));
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
+
+        refreshTokenRepository.save(new RefreshToken(
+                user.getId(),
+                refreshToken,
+                LocalDateTime.now().plusDays(30)
+        ));
+        return new TokenResponse(accessToken, refreshToken);
     }
 
     public TokenResponse refresh(String refreshToken) {
@@ -69,8 +80,11 @@ public class UserService {
         return new TokenResponse(newAccessToken, refreshToken);
     }
 
+    @Transactional
     public void logout(String refreshToken) {
-        Long userId = jwtTokenProvider.getUserId(refreshToken);
-        refreshTokenRepository.deleteByUserId(userId);
+        try {
+            Long userId = jwtTokenProvider.getUserId(refreshToken);
+            refreshTokenRepository.deleteByUserId(userId);
+        } catch (Exception ignored) {}
     }
 }
