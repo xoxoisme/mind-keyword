@@ -27,7 +27,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         Number userIdAttr = oAuth2User.getAttribute("userId");
         if (userIdAttr == null) throw new IllegalStateException("userId attribute not found");
         Long userId = userIdAttr.longValue();
-        String token = jwtTokenProvider.generateToken(userId);
+        String token = jwtTokenProvider.generateAccessToken(userId);
         getRedirectStrategy().sendRedirect(request, response, FRONTEND_URL + "?token=" + token);
     }
 }

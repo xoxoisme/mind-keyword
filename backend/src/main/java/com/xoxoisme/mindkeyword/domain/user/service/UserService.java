@@ -46,6 +46,6 @@ public class UserService {
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
-        return new TokenResponse(jwtTokenProvider.generateToken(user.getId()));
+        return new TokenResponse(jwtTokenProvider.generateAccessToken(user.getId()));
     }
 }
