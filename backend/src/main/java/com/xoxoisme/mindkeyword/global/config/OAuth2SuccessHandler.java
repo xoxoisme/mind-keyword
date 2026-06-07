@@ -1,5 +1,7 @@
 package com.xoxoisme.mindkeyword.global.config;
 
+import com.xoxoisme.mindkeyword.domain.user.entity.RefreshToken;
+import com.xoxoisme.mindkeyword.domain.user.repository.RefreshTokenRepository;
 import com.xoxoisme.mindkeyword.global.jwt.JwtTokenProvider;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -10,6 +12,7 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationSu
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 
 @Component
 @RequiredArgsConstructor
@@ -17,7 +20,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     private static final String FRONTEND_URL = "http://localhost:5173";
     private final JwtTokenProvider jwtTokenProvider;
-
+    private final RefreshTokenRepository refreshTokenRepository;
 
     // TODO: 배포 시에 URL에 토큰 붙이는 거 위험하기에 수정해야 한다.
     @Override
@@ -27,7 +30,12 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         Number userIdAttr = oAuth2User.getAttribute("userId");
         if (userIdAttr == null) throw new IllegalStateException("userId attribute not found");
         Long userId = userIdAttr.longValue();
-        String token = jwtTokenProvider.generateAccessToken(userId);
-        getRedirectStrategy().sendRedirect(request, response, FRONTEND_URL + "?token=" + token);
+
+        String accessToken = jwtTokenProvider.generateAccessToken(userId);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(userId);
+        refreshTokenRepository.save(new RefreshToken(userId, refreshToken, LocalDateTime.now().plusDays(30)));
+
+        getRedirectStrategy().sendRedirect(request, response,
+                FRONTEND_URL + "?token=" + accessToken + "&refreshToken=" + refreshToken);
     }
 }
