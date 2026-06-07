@@ -82,8 +82,9 @@ export default function LoginPage({ onLogin, onBack }: Props) {
         resetSignupState();
         setIsSignup(false);
       } else {
-        const token = await login(email, password);
-        localStorage.setItem('token', token);
+        const { accessToken, refreshToken } = await login(email, password);
+        localStorage.setItem('token', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
         onLogin();
       }
     } catch (e: any) {

@@ -10,12 +10,28 @@ client.interceptors.request.use((config) => {
   return config;
 });
 
-// 401 응답(토큰 만료/무효)만 로그아웃 처리, 403은 일반 에러로 전파
 client.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (refreshToken) {
+        try {
+          const res = await client.post('/api/v1/users/refresh', null, {
+            headers: { Authorization: `Bearer ${refreshToken}` },
+          });
+          const newAccessToken = res.data.data.accessToken;
+          localStorage.setItem('token', newAccessToken);
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          return client(originalRequest);
+        } catch {
+          // refresh 실패 시 로그아웃
+        }
+      }
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       window.location.reload();
     }
     return Promise.reject(error);
