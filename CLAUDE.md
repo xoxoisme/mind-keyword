@@ -1,10 +1,9 @@
-# CLAUDE.md
-
-이 파일은 Claude Code(claude.ai/code)가 이 저장소에서 작업할 때 참고하는 가이드입니다.
 
 ## 프로젝트 개요
 
 **mind-keyword**는 키워드 중심의 마인드맵 필기 웹 서비스입니다. `backend/` (Spring Boot)와 `frontend/` (React + Vite)로 구성됩니다.
+backend는 도메인 설계부터 구현까지 직접 했습니다.
+frontend는 Claude Code와 페어 프로그래밍으로 진행했습니다.
 
 ## 프론트엔드 명령어
 
